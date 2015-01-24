@@ -1,30 +1,48 @@
 package org.bustos.realityball
 
-import scala.slick.driver.MySQLDriver.simple._
-
 import java.io.File
 import scala.io.Source
+import org.slf4j.LoggerFactory
+import java.util.Date
 
 import RealityballRecords._
+import RealityballConfig._
 
 object Gameday extends App {
 
-  val db = Database.forURL("jdbc:mysql://localhost:3306/mlbretrosheet", driver="com.mysql.jdbc.Driver", user="root", password="")
-  val DataRoot = "/Users/mauricio/Google Drive/Projects/fantasySports/generatedData/"
+  System.setProperty("webdriver.chrome.driver", "/Users/mauricio/Downloads/chromedriver");
   val file = new File(DataRoot + "teamMetaData.csv")
 
+  val logger = LoggerFactory.getLogger(getClass)
+  
+  def teamSchedule(teamData: TeamMetaData): MlbSchedule = {    
+    try {
+      new MlbSchedule(teamData, "2015")
+    } catch {
+      case e: Exception => new MlbSchedule(teamData, "2015")
+    }
+  }
+  
+  def processGames = {
+    logger.info("Updating plays...")
+    val game = new MlbPlays(new Date, "det", "ari")    
+  }
+  
   def processSchedules = {
-    println("Updating schedules...")
+    logger.info("Updating schedules...")
     db.withSession { implicit session =>
       Source.fromFile(file).getLines.foreach { line => 
         if (!line.startsWith("retrosheetId")) {
           val data = line.split(',')
-          val schedule = new MlbSchedule(TeamMetaData(data(0), data(1), data(2), data(3), data(4), data(5)), "2015")
-          schedule.games.map {println(_)}
+          teamSchedule(TeamMetaData(data(0), data(1), data(2), data(3), data(4), data(5))).games.map { newData =>
+            //gamesTable += newData.
+            //  println("")
+          }
         }
       }
     }    
   }
  
+  processGames
   processSchedules
 }

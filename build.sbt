@@ -4,7 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.11.4"
 
-mainClass in Compile := Some("Gameday")
+mainClass in Compile := Some("org.bustos.realityball.Gameday")
 
 libraryDependencies ++= List(
   "com.typesafe.akka"   %% "akka-actor"    % "2.3.6",

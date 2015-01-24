@@ -12,6 +12,7 @@ import akka.io.IO
 import spray.json._
 import DefaultJsonProtocol._
 import org.slf4j.LoggerFactory
+import RealityballConfig._
 
 object WeatherLoadRecords {
   case class ForecastDate(pretty: String)
@@ -52,12 +53,10 @@ class HourlyWeatherForecast(postalCode: String) {
   import WeatherLoadRecords._
   import RealityballRecords._
 
-  val logger =  LoggerFactory.getLogger(getClass)
+  val logger = LoggerFactory.getLogger(getClass)
   
   implicit val system = ActorSystem()
   implicit val timeout: Timeout = Timeout(5 minutes)
-  
-  val APIKEY = "eeb51f60b8bd49aa"
   
   def forecastConditions(time: String): GameConditions = {
     val format = new java.text.SimpleDateFormat("yyyyMMdd HH:mm")
@@ -79,7 +78,7 @@ class HourlyWeatherForecast(postalCode: String) {
       else 30 seconds
     }
   
-    val request = HttpRequest(HttpMethods.GET, "http://api.wunderground.com/api/" + APIKEY + "/hourly/q/" + postalCode + ".json")
+    val request = HttpRequest(HttpMethods.GET, WUNDERGROUND_APIURL + WUNDERGROUND_APIKEY + "/hourly/q/" + postalCode + ".json")
     val response = Await.result ((IO(Http) ? request).mapTo[HttpResponse], atMost(request)) ~> unmarshal[String]
     response.parseJson.convertTo[HourlyForecast].hourly_forecast.toList
   }
