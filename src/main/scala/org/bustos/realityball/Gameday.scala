@@ -23,9 +23,14 @@ object Gameday extends App {
     }
   }
   
-  def processGames = {
+  def processGamePlays = {
     logger.info("Updating plays...")
-    val game = new MlbPlays(new Date, "det", "ari")    
+    val game = new MlbPlays(new Date(114, 3, 22), "mia", "atl")    
+  }
+  
+  def processBoxScores = {
+    logger.info("Updating box scores...")
+    val box = new MlbBox(new Date(114, 3, 22), "mia", "atl")    
   }
   
   def processSchedules = {
@@ -43,6 +48,7 @@ object Gameday extends App {
     }    
   }
  
-  processGames
+  processBoxScores 
+  processGamePlays
   processSchedules
 }

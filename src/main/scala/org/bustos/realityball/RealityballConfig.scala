@@ -6,7 +6,7 @@ import scala.util.Properties.envOrElse
 object RealityballConfig {
   
   val GamedayURL = "http://mlb.com/mlb/gameday/"
-  val DataRoot = "/Users/mauricio/Google Drive/Projects/fantasySports/generatedData/"
+  val DataRoot = "/Users/mauricio/Google Drive/Projects/fantasySports/data/"
   
   val WUNDERGROUND_APIURL = "http://api.wunderground.com/api/" 
   val WUNDERGROUND_APIKEY = "eeb51f60b8bd49aa"
