@@ -63,9 +63,18 @@ class RealityballData {
     }
   }
 
+  def mappingForRetroId(id: String): IdMapping = {
+    db.withSession { implicit session =>
+      val mappingList = idMappingTable.filter({ x => x.retroId === id }).list
+      if (mappingList.length == 1) mappingList.head
+      else IdMapping("", "", "", "", "", "", "", "", "")
+    }
+  }
+
   def batterSummary(id: String, year: String): PlayerData = {
     db.withSession { implicit session =>
       val playerMnemonic = truePlayerID(id)
+      val mapping = mappingForRetroId(playerMnemonic)
       if (year == "All") {
         val player = playersTable.filter(_.id === playerMnemonic).list.head
         val RHatBats = hitterRawRH.filter(_.id === playerMnemonic).map(_.RHatBat).sum.run.get
@@ -74,7 +83,7 @@ class RealityballData {
           r <- hitterRawLH if r.id === playerMnemonic;
           l <- hitterRawRH if (l.id === playerMnemonic && l.date === r.date)
         } yield (1)
-        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run)
+        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
         PlayerData(player, summary)
       } else {
         val player = playersTable.filter({ x => x.id === playerMnemonic && x.year.startsWith(year) }).list.head
@@ -84,7 +93,7 @@ class RealityballData {
           r <- hitterRawLH if r.id === playerMnemonic && r.date.startsWith(year);
           l <- hitterRawRH if (l.id === playerMnemonic && l.date === r.date)
         } yield (1)
-        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run)
+        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
         PlayerData(player, summary)
       }
     }
@@ -93,13 +102,14 @@ class RealityballData {
   def pitcherSummary(id: String, year: String): PitcherData = {
     db.withSession { implicit session =>
       val playerMnemonic = truePlayerID(id)
+      val mapping = mappingForRetroId(playerMnemonic)
       if (year == "All") {
         val player = playersTable.filter(_.id === playerMnemonic).list.head
         val win = pitcherStats.filter(x => x.id === playerMnemonic && x.win === 1).length.run
         val loss = pitcherStats.filter(x => x.id === playerMnemonic && x.loss === 1).length.run
         val save = pitcherStats.filter(x => x.id === playerMnemonic && x.save === 1).length.run
         val games = pitcherStats.filter(x => x.id === playerMnemonic).length.run
-        val summary = PitcherSummary(playerMnemonic, win, loss, save, games)
+        val summary = PitcherSummary(playerMnemonic, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
         PitcherData(player, summary)
       } else {
         val player = playersTable.filter(x => x.id === playerMnemonic && x.year.startsWith(year)).list.head
@@ -107,7 +117,7 @@ class RealityballData {
         val loss = pitcherStats.filter(x => x.id === playerMnemonic && x.loss === 1 && x.date.startsWith(year)).length.run
         val save = pitcherStats.filter(x => x.id === playerMnemonic && x.save === 1 && x.date.startsWith(year)).length.run
         val games = pitcherStats.filter(x => x.id === playerMnemonic && x.date.startsWith(year)).length.run
-        val summary = PitcherSummary(playerMnemonic, win, loss, save, games)
+        val summary = PitcherSummary(playerMnemonic, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
         PitcherData(player, summary)
       }
     }
