@@ -23,8 +23,8 @@ object RealityballRecords {
   case class PitcherData(meta: Player, appearances: PitcherSummary)
 
   case class PitcherDaily(id: String, game: String, date: String, opposing: String, var win: Int, var loss: Int, var save: Int,
-                          var hits: Int, var walks: Int, var hitByPitch: Int, var strikeOuts: Int, var earnedRuns: Int, var outs: Int,
-                          var shutout: Boolean, var noHitter: Boolean, var pitches: Int, var balls: Int)
+                          var hits: Int, var walks: Int, var hitByPitch: Int, var strikeOuts: Int, var groundOuts: Int, var flyOuts: Int,
+                          var earnedRuns: Int, var outs: Int, var shutout: Boolean, var noHitter: Boolean, var pitches: Int, var balls: Int)
 
   case class Game(id: String, var homeTeam: String, var visitingTeam: String, var site: String, var date: String, var number: Int)
   case class GameConditions(id: String, var startTime: String, var daynight: String, var usedh: Boolean,
@@ -167,6 +167,8 @@ class PitcherDailyTable(tag: Tag) extends Table[PitcherDaily](tag, "pitcherDaily
   def walks = column[Int]("walks")
   def hitByPitch = column[Int]("hitByPitch")
   def strikeOuts = column[Int]("strikeOuts")
+  def groundOuts = column[Int]("groundOuts")
+  def flyOuts = column[Int]("flyOuts")
   def earnedRuns = column[Int]("earnedRuns")
   def outs = column[Int]("outs")
   def shutout = column[Boolean]("shutout")
@@ -176,7 +178,7 @@ class PitcherDailyTable(tag: Tag) extends Table[PitcherDaily](tag, "pitcherDaily
 
   def pk = index("pk_id_date", (id, game)) // Duplicate issue with Joaquin Benoit on 20100910
 
-  def * = (id, game, date, opposing, win, loss, save, hits, walks, hitByPitch, strikeOuts, earnedRuns, outs, shutout, noHitter, pitches, balls) <> (PitcherDaily.tupled, PitcherDaily.unapply)
+  def * = (id, game, date, opposing, win, loss, save, hits, walks, hitByPitch, strikeOuts, groundOuts, flyOuts, earnedRuns, outs, shutout, noHitter, pitches, balls) <> (PitcherDaily.tupled, PitcherDaily.unapply)
 }
 
 class PlayersTable(tag: Tag) extends Table[Player](tag, "players") {

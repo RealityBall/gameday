@@ -22,6 +22,7 @@ object MlbBox {
   case class GameInfo(id: String, balks: String, pitchesStrikes: String, groundFly: String, batterFaced: String, umpires: String, weather: String, wind: String, time: String, attendance: String, venue: String)
 
   val dateFormat = new SimpleDateFormat("yyyy_MM_dd");
+  val cleanDateFormat = new SimpleDateFormat("yyyy_MM_dd");
   val yearFormat = new SimpleDateFormat("yyyy");
 }
 
@@ -40,7 +41,7 @@ class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
   logger.info("*** Retrieving box results for " + awayTeam + " @ " + homeTeam + " on " + dateFormat.format(date))
   logger.info("********************************")
 
-  val gameId = homeTeam.toUpperCase + dateFormat.format(date).toString
+  val gameId = homeTeam.toUpperCase + cleanDateFormat.format(date).toString
 
   val host = GamedayURL
   go to host + "index.jsp?gid=" + dateFormat.format(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"

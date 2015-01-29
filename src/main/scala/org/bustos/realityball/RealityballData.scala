@@ -143,6 +143,18 @@ class RealityballData {
     GoogleTable(columns, rows).toJson.prettyPrint
   }
 
+  def dataNumericTable3(data: List[(String, AnyVal, AnyVal, AnyVal)], titles: List[String]): String = {
+    val columns = List(new GoogleColumn("Date", "Date", "string"), new GoogleColumn(titles(0), titles(0), "number"), new GoogleColumn(titles(1), titles(1), "number"), new GoogleColumn(titles(2), titles(2), "number"))
+    val rows = data.map(obs => GoogleRow(List(new GoogleCell(obs._1), new GoogleCell(obs._2), new GoogleCell(obs._3), new GoogleCell(obs._4))))
+    GoogleTable(columns, rows).toJson.prettyPrint
+  }
+
+  def dataNumericPieChart(data: List[(String, AnyVal)], title: String, units: String): String = {
+    val columns = List(new GoogleColumn(title, title, "string"), new GoogleColumn(units, units, "string"))
+    val rows = data.map(obs => GoogleRow(List(new GoogleCell(obs._1), new GoogleCell(obs._2))))
+    GoogleTable(columns, rows).toJson.prettyPrint
+  }
+
   def displayDouble(x: Option[Double]): Double = {
     x match {
       case None => Double.NaN
@@ -292,15 +304,41 @@ class RealityballData {
     }
   }
 
-  def outs(id: String, year: String): List[(String, Int)] = {
+  def outs(id: String, year: String): List[(String, Double, Double, Double)] = {
     db.withSession { implicit session =>
-      pitcherDailyQuery(id, year).sortBy(_.date).map(p => (p.date, p.outs)).list.map({ x => (x._1, x._2) })
+      pitcherDailyQuery(id, year).map(p => (p.date, p.strikeOuts, p.flyOuts, p.groundOuts)).list.map({ x => (x._1, x._2.toDouble.max(0.001), x._3.toDouble.max(0.001), x._4.toDouble.max(0.001)) })
+    }
+  }
+
+  def outsTypeCount(id: String, year: String): List[(String, Double)] = {
+    db.withSession { implicit session =>
+      if (year == "All") {
+        val q = Q[String, (Double, Double, Double)] + """
+              select sum(strikeOuts) as souts, sum(flyOuts) as fouts, sum(groudOuts) as gouts
+              from
+                pitcherDaily
+              where
+                id = ?
+            """
+        val result = q(id).first
+        List(("Strikeouts", result._1), ("Flyouts", result._2), ("Groundouts", result._3))
+      } else {
+        val q = Q[(String, String), (Double, Double, Double)] + """
+              select sum(strikeOuts) as souts, sum(flyOuts) as fouts, sum(groundOuts) as gouts
+              from
+                pitcherDaily
+              where
+                id = ? and instr(date, ?) > 0
+              """
+        val result = q(id, year).first
+        List(("Strikeouts", result._1), ("Flyouts", result._2), ("Groundouts", result._3))
+      }
     }
   }
 
   def strikeRatio(id: String, year: String): List[(String, Double)] = {
     db.withSession { implicit session =>
-      pitcherDailyQuery(id, year).sortBy(_.date).map(p => (p.date, p.pitches, p.balls)).list.map({ x => (x._1, (x._2 - x._3).toDouble / x._2.toDouble) })
+      pitcherDailyQuery(id, year).map(p => (p.date, p.pitches, p.balls)).list.map({ x => (x._1, (x._2 - x._3).toDouble / x._2.toDouble) })
     }
   }
 
