@@ -44,7 +44,7 @@ class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
   val gameId = homeTeam.toUpperCase + cleanDateFormat.format(date).toString
 
   val host = GamedayURL
-  go to host + "index.jsp?gid=" + dateFormat.format(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"
+  go to host + "mlb/gameday/index.jsp?gid=" + dateFormat.format(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"
 
   var pitchCount = 0
   var awayBatterLinescores = List.empty[BatterLinescore]

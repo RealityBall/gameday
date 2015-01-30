@@ -1,9 +1,11 @@
 package org.bustos.realityball
 
 import java.io.File
-import scala.io.Source
-import org.slf4j.LoggerFactory
 import java.util.Date
+import org.slf4j.LoggerFactory
+import scala.io.Source
+import scala.slick.driver.MySQLDriver.simple._
+import scala.slick.jdbc.meta.MTable
 
 import RealityballRecords._
 import RealityballConfig._
@@ -11,44 +13,53 @@ import RealityballConfig._
 object Gameday extends App {
 
   System.setProperty("webdriver.chrome.driver", "/Users/mauricio/Downloads/chromedriver");
-  val file = new File(DataRoot + "teamMetaData.csv")
 
   val logger = LoggerFactory.getLogger(getClass)
-  
-  def teamSchedule(teamData: TeamMetaData): MlbSchedule = {    
-    try {
-      new MlbSchedule(teamData, "2015")
-    } catch {
-      case e: Exception => new MlbSchedule(teamData, "2015")
-    }
-  }
-  
+  val realityballData = new RealityballData
+
   def processGamePlays = {
     logger.info("Updating plays...")
-    val game = new MlbPlays(new Date(114, 3, 22), "mia", "atl")    
+    val game = new MlbPlays(new Date(114, 3, 22), "mia", "atl")
   }
-  
+
   def processBoxScores = {
     logger.info("Updating box scores...")
-    val box = new MlbBox(new Date(114, 3, 22), "mia", "atl")    
+    val box = new MlbBox(new Date(114, 3, 22), "mia", "atl")
   }
-  
-  def processSchedules = {
-    logger.info("Updating schedules...")
+
+  def teamSchedule(team: Team, year: String): MlbSchedule = {
+    try {
+      new MlbSchedule(team, year)
+    } catch {
+      case e: Exception => new MlbSchedule(team, year)
+    }
+  }
+
+  def processSchedules(year: String) = {
+    logger.info("Updating schedules for " + year + "...")
+
     db.withSession { implicit session =>
-      Source.fromFile(file).getLines.foreach { line => 
-        if (!line.startsWith("retrosheetId")) {
-          val data = line.split(',')
-          teamSchedule(TeamMetaData(data(0), data(1), data(2), data(3), data(4), data(5))).games.map { newData =>
-            //gamesTable += newData.
-            //  println("")
-          }
+      gamedayScheduleTable.filter({ x => x.date startsWith year }).delete
+      realityballData.teams(year).foreach(team => {
+        val schedule = teamSchedule(team, year)
+        schedule.pastGames.map { game =>
+          gamedayScheduleTable += game
         }
-      }
-    }    
+        schedule.futureGames.map { game =>
+          gamedayScheduleTable += game
+        }
+      })
+    }
   }
- 
-  processBoxScores 
+
+  db.withSession { implicit session =>
+    if (MTable.getTables("gamedaySchedule").list.isEmpty) {
+      gamedayScheduleTable.ddl.drop
+      //gamedayScheduleTable.ddl.create
+    }
+  }
+  //processSchedules("2014")
+  //processSchedules("2015")
+  processBoxScores
   processGamePlays
-  processSchedules
 }

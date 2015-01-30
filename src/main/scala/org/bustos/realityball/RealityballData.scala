@@ -1,5 +1,7 @@
 package org.bustos.realityball
 
+import java.util.Date
+import java.text.SimpleDateFormat
 import scala.slick.driver.MySQLDriver.simple._
 import scala.util.Properties.envOrNone
 import spray.json._
@@ -12,12 +14,12 @@ class RealityballData {
   import RealityballRecords._
   import GoogleTableJsonProtocol._
 
-  def teams(year: String): List[(String, String, String, String, String)] = {
+  def teams(year: String): List[Team] = {
     db.withSession { implicit session =>
-      if (year == "All") {
-        Q.queryNA[(String, String, String, String, String)]("select distinct '2014', mnemonic, league, city, name from teams order by mnemonic").list
+      if (year == "All" || year.toInt > 2014) {
+        teamsTable.filter(_.year === "2014").sortBy(_.mnemonic).list
       } else {
-        teamsTable.filter(_.year === year).sortBy(_.mnemonic).list.map({ x => (x.year, x.mnemonic, x.league, x.city, x.name) })
+        teamsTable.filter(_.year === year).sortBy(_.mnemonic).list
       }
     }
   }
@@ -137,9 +139,15 @@ class RealityballData {
     GoogleTable(columns, rows).toJson.prettyPrint
   }
 
-  def dataNumericTable(data: List[(String, AnyVal)]): String = {
-    val columns = List(new GoogleColumn("Date", "Date", "string"), new GoogleColumn("Total", "Total", "number"))
+  def dataNumericTable(data: List[(String, AnyVal)], title: String): String = {
+    val columns = List(new GoogleColumn("Date", "Date", "string"), new GoogleColumn(title, title, "number"))
     val rows = data.map(obs => GoogleRow(List(new GoogleCell(obs._1), new GoogleCell(obs._2))))
+    GoogleTable(columns, rows).toJson.prettyPrint
+  }
+
+  def dataNumericTable2(data: List[(String, AnyVal, AnyVal)], titles: List[String]): String = {
+    val columns = List(new GoogleColumn("Date", "Date", "string"), new GoogleColumn(titles(0), titles(0), "number"), new GoogleColumn(titles(1), titles(1), "number"))
+    val rows = data.map(obs => GoogleRow(List(new GoogleCell(obs._1), new GoogleCell(obs._2), new GoogleCell(obs._3))))
     GoogleTable(columns, rows).toJson.prettyPrint
   }
 
@@ -367,4 +375,91 @@ class RealityballData {
       playerStats.map({ x => (x._1, displayDouble(x._2)) })
     }
   }
+
+  def teamFantasy(team: String, year: String): List[(String, Double, Double)] = {
+    import scala.collection.mutable.Queue
+
+    def withMovingAverage(list: List[(String, Double)]): List[(String, Double, Double)] = {
+      var running = Queue.empty[Double]
+      list.map({ x =>
+        {
+          running.enqueue(x._2)
+          if (running.size > 25) running.dequeue
+          (x._1, x._2, running.foldLeft(0.0)(_ + _) / running.size)
+        }
+      })
+    }
+
+    db.withSession { implicit session =>
+      if (year == "All") {
+        val q = Q[(String, String), (String, Double)] + """
+              select date, sum(fanDuel) from
+              (select * from hitterFantasyStats where side = 0 and gameId in (select id from games where visitingTeam = ?)
+              union
+              select * from hitterFantasyStats where side = 1 and gameId in (select id from games where homeTeam = ?)) history
+              group by date order by date
+            """
+        withMovingAverage(q(team, team).list)
+      } else {
+        val q = Q[(String, String, String, String), (String, Double)] + """
+              select date, sum(fanDuel) from
+              (select * from hitterFantasyStats where side = 0 and gameId in (select id from games where visitingTeam = ? and instr(date, ?) > 0)
+              union
+              select * from hitterFantasyStats where side = 1 and gameId in (select id from games where homeTeam = ? and instr(date, ?) > 0)) history
+              group by date order by date
+            """
+        withMovingAverage(q(team, year, team, year).list)
+      }
+    }
+  }
+
+  def ballparkBA(team: String, year: String): List[BattingAverageObservation] = {
+    def safeRatio(x: Double, y: Double): Double = {
+      if (y != 0.0) x / y
+      else 0.0
+    }
+    db.withSession { implicit session =>
+      if (year == "All") ballparkDailiesTable.filter(_.id like team + "%").sortBy(_.id).list.map({ x =>
+        BattingAverageObservation(x.date, safeRatio((x.LHhits + x.RHhits), (x.LHatBat + x.RHatBat)), safeRatio(x.LHhits, x.LHatBat), safeRatio(x.RHhits, x.RHatBat))
+      })
+      else ballparkDailiesTable.filter({ row => (row.id like (team + "%")) && (row.id like (team + year + "%")) }).list.map({ x =>
+        BattingAverageObservation(x.date, safeRatio((x.LHhits + x.RHhits), (x.LHatBat + x.RHatBat)), safeRatio(x.LHhits, x.LHatBat), safeRatio(x.RHhits, x.RHatBat))
+      })
+    }
+  }
+
+  def ballparkAttendance(team: String, year: String): List[(String, Double)] = {
+    def dateFromId(id: String): String = {
+      id.substring(3, 7) + "/" + id.substring(7, 9) + "/" + id.substring(9, 11)
+    }
+    db.withSession { implicit session =>
+      if (year == "All") gameScoringTable.filter(_.id like team + "%").sortBy(_.id).list.map({ x => (dateFromId(x.id), x.attendance.toDouble) })
+      else gameScoringTable.filter({ row => (row.id like (team + "%")) && (row.id like (team + year + "%")) }).list.map({ x => (dateFromId(x.id), x.attendance.toDouble) })
+    }
+  }
+
+  def ballparkTemp(team: String, year: String): List[(String, Double)] = {
+    db.withSession { implicit session =>
+      val teamMeta = teamsTable.filter({ x => x.year === "2014" && x.mnemonic === team }).list
+      if (teamMeta.isEmpty) List.empty[(String, Double)]
+      else {
+        val weather = new Weather(teamMeta.head.zipCode)
+        val dateFormat = new SimpleDateFormat("yyyyMMdd HH:mm");
+        weather.hourlyForecasts.map({ x =>
+          {
+            val date = new Date(x.FCTTIME.epoch.toLong * 1000)
+            (dateFormat.format(date), x.temp.english.toDouble)
+          }
+        })
+      }
+    }
+  }
+
+  def schedule(team: String, year: String): List[GamedaySchedule] = {
+    db.withSession { implicit session =>
+      if (year == "All") gamedayScheduleTable.filter({ x => x.homeTeam === team || (x.visitingTeam === team) }).sortBy(_.date).list
+      else gamedayScheduleTable.filter({ x => (x.homeTeam === team) || (x.visitingTeam === team) }).sortBy(_.date).list
+    }
+  }
+
 }
