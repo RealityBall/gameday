@@ -414,17 +414,38 @@ class RealityballData {
   }
 
   def ballparkBA(team: String, year: String): List[BattingAverageObservation] = {
+    import scala.collection.mutable.Queue
+
     def safeRatio(x: Double, y: Double): Double = {
       if (y != 0.0) x / y
-      else 0.0
+      else Double.NaN
     }
+
+    def replaceWithMovingAverage(list: List[BattingAverageObservation]): List[BattingAverageObservation] = {
+      var running_1 = Queue.empty[Double]
+      var running_2 = Queue.empty[Double]
+      var running_3 = Queue.empty[Double]
+
+      list.map({ x =>
+        {
+          if (!x.bAvg.isNaN) running_1.enqueue(x.bAvg)
+          if (running_1.size > 25) running_1.dequeue
+          if (!x.lhBAvg.isNaN) running_2.enqueue(x.lhBAvg)
+          if (running_2.size > 25) running_3.dequeue
+          if (!x.rhBAvg.isNaN) running_3.enqueue(x.rhBAvg)
+          if (running_3.size > 25) running_3.dequeue
+          BattingAverageObservation(x.date, running_1.foldLeft(0.0)(_ + _) / running_1.size, running_2.foldLeft(0.0)(_ + _) / running_2.size, running_3.foldLeft(0.0)(_ + _) / running_3.size)
+        }
+      })
+    }
+
     db.withSession { implicit session =>
-      if (year == "All") ballparkDailiesTable.filter(_.id like team + "%").sortBy(_.id).list.map({ x =>
+      if (year == "All") replaceWithMovingAverage(ballparkDailiesTable.filter(_.id like team + "%").sortBy(_.id).list.map({ x =>
         BattingAverageObservation(x.date, safeRatio((x.LHhits + x.RHhits), (x.LHatBat + x.RHatBat)), safeRatio(x.LHhits, x.LHatBat), safeRatio(x.RHhits, x.RHatBat))
-      })
-      else ballparkDailiesTable.filter({ row => (row.id like (team + "%")) && (row.id like (team + year + "%")) }).list.map({ x =>
+      }))
+      else replaceWithMovingAverage(ballparkDailiesTable.filter({ row => (row.id like (team + "%")) && (row.id like (team + year + "%")) }).list.map({ x =>
         BattingAverageObservation(x.date, safeRatio((x.LHhits + x.RHhits), (x.LHatBat + x.RHatBat)), safeRatio(x.LHhits, x.LHatBat), safeRatio(x.RHhits, x.RHatBat))
-      })
+      }))
     }
   }
 
