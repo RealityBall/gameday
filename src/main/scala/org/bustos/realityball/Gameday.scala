@@ -27,21 +27,13 @@ object Gameday extends App {
     val box = new MlbBox(new Date(114, 3, 22), "mia", "atl")
   }
 
-  def teamSchedule(team: Team, year: String): MlbSchedule = {
-    try {
-      new MlbSchedule(team, year)
-    } catch {
-      case e: Exception => new MlbSchedule(team, year)
-    }
-  }
-
   def processSchedules(year: String) = {
     logger.info("Updating schedules for " + year + "...")
 
     db.withSession { implicit session =>
       gamedayScheduleTable.filter({ x => x.date startsWith year }).delete
       realityballData.teams(year).foreach(team => {
-        val schedule = teamSchedule(team, year)
+        val schedule = new MlbSchedule(team, year)
         schedule.pastGames.map { game =>
           gamedayScheduleTable += game
         }
@@ -52,12 +44,31 @@ object Gameday extends App {
     }
   }
 
-  db.withSession { implicit session =>
-    if (MTable.getTables("gamedaySchedule").list.isEmpty) {
-      gamedayScheduleTable.ddl.drop
-      //gamedayScheduleTable.ddl.create
+  def processOdds(year: Int) = {
+    logger.info("Updating Odds for " + year + "...")
+
+    var gameOdds = Map.empty[String, List[GameOdds]]
+    db.withSession { implicit session =>
+      gameOddsTable.filter({ x => x.id like ("%" + year + "%") }).delete
+      realityballData.teams(year.toString).foreach(team => {
+        gameOdds = (new CoversLines(team, year.toString, gameOdds)).games
+      })
+      gameOdds.foreach({ case (k, v) => v.foreach({ gameOddsTable += _ }) })
     }
   }
+
+  db.withSession { implicit session =>
+    if (MTable.getTables("gamedaySchedule").list.isEmpty) {
+      //gamedayScheduleTable.ddl.drop
+      gamedayScheduleTable.ddl.create
+    }
+    if (MTable.getTables("gameOdds").list.isEmpty) {
+      //gamedayScheduleTable.ddl.drop
+      gameOddsTable.ddl.create
+    }
+  }
+
+  (2013 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
   processBoxScores

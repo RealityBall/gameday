@@ -15,9 +15,6 @@ import RealityballConfig._
 
 object MlbSchedule {
 
-  import java.io.File
-  import scala.io.Source
-
   val futureGame = "future"
   val pastGame = "past"
 
@@ -116,6 +113,7 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
     if (games.isEmpty || games.tail.isEmpty) games
     else if (games.head.id == games.tail.head.id) {
       games.head.id = games.head.id.substring(0, 11) + (games.head.id.substring(11, 12).toInt + 1).toString
+      games.tail.head.id = games.tail.head.id.substring(0, 11) + (games.tail.head.id.substring(11, 12).toInt + 2).toString
       games.head :: findDoubleHeaders(games.tail)
     } else games.head :: findDoubleHeaders(games.tail)
   }

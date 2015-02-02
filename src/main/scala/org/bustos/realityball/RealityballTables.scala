@@ -11,7 +11,8 @@ object RealityballRecords {
   case class Statistic(var total: Double, var rh: Double, var lh: Double)
   case class StatisticInputs(var totalNumer: Int, var totalDenom: Int, var rhNumer: Int, var rhDenom: Int, var lhNumer: Int, var lhDenom: Int)
   case class RunningHitterData(ba: Queue[StatisticInputs], obp: Queue[StatisticInputs], slugging: Queue[StatisticInputs], fantasy: Map[String, Queue[Statistic]])
-  case class Team(year: String, mnemonic: String, league: String, city: String, name: String, site: String, zipCode: String, mlbComId: String, mlbComName: String, timeZone: String)
+  case class Team(year: String, mnemonic: String, league: String, city: String, name: String, site: String, zipCode: String,
+                  mlbComId: String, mlbComName: String, timeZone: String, coversComId: String, coversComName: String)
 
   case class BattingAverageObservation(date: String, bAvg: Double, lhBAvg: Double, rhBAvg: Double)
 
@@ -33,6 +34,7 @@ object RealityballRecords {
                              startTime: String, temp: Int, winddir: String, windspeed: Int, precip: String, sky: String)
   case class GameScoring(id: String, var umphome: String, var ump1b: String, var ump2b: String, var ump3b: String, var howscored: String,
                          var timeofgame: Int, var attendance: Int, var wp: String, var lp: String, var save: String)
+  case class GameOdds(var id: String, var visitorML: Int, var homeML: Int, var overUnder: Double, var overUnderML: Int)
 
   case class BallparkDaily(var id: String, var date: String, var RHhits: Int, var RHtotalBases: Int, var RHatBat: Int, var LHhits: Int, var LHtotalBases: Int, var LHatBat: Int)
   case class Ballpark(id: String, name: String, aka: String, city: String, state: String, start: String, end: String, league: String, notes: String)
@@ -45,6 +47,7 @@ object RealityballRecords {
   val gamedayScheduleTable = TableQuery[GamedayScheduleTable]
   val gameScoringTable = TableQuery[GameScoringTable]
   val gamesTable = TableQuery[GamesTable]
+  val gameOddsTable = TableQuery[GameOddsTable]
   val hitterFantasy = TableQuery[HitterFantasyTable]
   val hitterFantasyMoving = TableQuery[HitterFantasyMovingTable]
   val hitterFantasyMovingStats = TableQuery[HitterFantasyMovingTable]
@@ -73,7 +76,7 @@ object RealityballJsonProtocol extends DefaultJsonProtocol {
   implicit val pitcherSummaryFormat = jsonFormat8(PitcherSummary)
   implicit val playerDataFormat = jsonFormat2(PlayerData)
   implicit val pitcherDataFormat = jsonFormat2(PitcherData)
-  implicit val teamFormat = jsonFormat10(Team)
+  implicit val teamFormat = jsonFormat12(Team)
   implicit val gamedayScheduleFormat = jsonFormat16(GamedaySchedule)
 }
 
@@ -88,8 +91,10 @@ class TeamsTable(tag: Tag) extends Table[Team](tag, "teams") {
   def mlbComId = column[String]("mlbComId")
   def mlbComName = column[String]("mlbComName")
   def timeZone = column[String]("timeZone")
+  def coversComId = column[String]("coversComId")
+  def coversComName = column[String]("coversComName")
 
-  def * = (year, mnemonic, league, city, name, site, zipCode, mlbComId, mlbComName, timeZone) <> (Team.tupled, Team.unapply)
+  def * = (year, mnemonic, league, city, name, site, zipCode, mlbComId, mlbComName, timeZone, coversComId, coversComName) <> (Team.tupled, Team.unapply)
 }
 
 class GamesTable(tag: Tag) extends Table[Game](tag, "games") {
@@ -137,6 +142,16 @@ class GamedayScheduleTable(tag: Tag) extends Table[GamedaySchedule](tag, "gameda
   def sky = column[String]("sky")
 
   def * = (id, homeTeam, visitingTeam, site, date, number, result, winningPitcher, losingPitcher, record, startTime, temp, winddir, windspeed, precip, sky) <> (GamedaySchedule.tupled, GamedaySchedule.unapply)
+}
+
+class GameOddsTable(tag: Tag) extends Table[GameOdds](tag, "gameOdds") {
+  def id = column[String]("id", O.PrimaryKey)
+  def visitorML = column[Int]("visitorML")
+  def homeML = column[Int]("homeML")
+  def overUnder = column[Double]("overUnder")
+  def overUnderML = column[Int]("overUnderML")
+
+  def * = (id, visitorML, homeML, overUnder, overUnderML) <> (GameOdds.tupled, GameOdds.unapply)
 }
 
 class BallparkDailiesTable(tag: Tag) extends Table[BallparkDaily](tag, "ballparkDailies") {
