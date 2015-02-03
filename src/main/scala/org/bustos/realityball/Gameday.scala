@@ -12,7 +12,7 @@ import RealityballConfig._
 
 object Gameday extends App {
 
-  System.setProperty("webdriver.chrome.driver", "/Users/mauricio/Downloads/chromedriver");
+  System.setProperty("webdriver.chrome.driver", "/Applications/development/chromedriver");
 
   val logger = LoggerFactory.getLogger(getClass)
   val realityballData = new RealityballData
@@ -68,7 +68,7 @@ object Gameday extends App {
     }
   }
 
-  (2013 to 2014).foreach(processOdds(_))
+  (2010 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
   processBoxScores

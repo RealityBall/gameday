@@ -75,9 +75,12 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
                       val gameId = retrosheetIdFromCovers(visitor) + date
                       if (gameMap.contains(gameId)) {
                         if (gameMap(gameId).size == 2 && gameMap(gameId)(1).visitorML == 0) {
-                          // Update `visitorML'
+                          // Update `visitorML' for second game of a double header
                           gameMap(gameId)(1).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else if (gameMap(gameId).size == 2 && gameMap(gameId)(0).visitorML == 0) {
+                          // Update `visitorML' for first game of a double header
+                          gameMap(gameId)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId)(0).visitorML == 0) {
                           // Update `visitorML'
                           gameMap(gameId)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else {
@@ -92,9 +95,12 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
                       val gameId = team.mnemonic + date
                       if (gameMap.contains(gameId)) {
                         if (gameMap(gameId).size == 2 && gameMap(gameId)(1).homeML == 0) {
-                          // Update `homerML'
+                          // Update `homerML' for second game of a double header
                           gameMap(gameId)(1).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else if (gameMap(gameId).size == 2 && gameMap(gameId)(0).homeML == 0) {
+                          // Update `homeML' for first game of a double header
+                          gameMap(gameId)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId)(0).homeML == 0) {
                           // Update `homeML'
                           gameMap(gameId)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else {
