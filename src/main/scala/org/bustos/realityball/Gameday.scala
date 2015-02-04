@@ -57,18 +57,29 @@ object Gameday extends App {
     }
   }
 
-  db.withSession { implicit session =>
-    if (MTable.getTables("gamedaySchedule").list.isEmpty) {
-      //gamedayScheduleTable.ddl.drop
-      gamedayScheduleTable.ddl.create
-    }
-    if (MTable.getTables("gameOdds").list.isEmpty) {
-      //gamedayScheduleTable.ddl.drop
-      gameOddsTable.ddl.create
+  def processInjuries = {
+    logger.info("Updating injuries for...")
+
+    var injuries = (new MlbInjuries).injuries
+    db.withSession { implicit session =>
+      injuries.foreach({ injuryReportTable += _ })
     }
   }
 
-  (2010 to 2014).foreach(processOdds(_))
+  db.withSession { implicit session =>
+    if (MTable.getTables("gamedaySchedule").list.isEmpty) {
+      gamedayScheduleTable.ddl.create
+    }
+    if (MTable.getTables("gameOdds").list.isEmpty) {
+      gameOddsTable.ddl.create
+    }
+    if (MTable.getTables("injuryReport").list.isEmpty) {
+      injuryReportTable.ddl.create
+    }
+  }
+
+  processInjuries
+  //(2010 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
   processBoxScores

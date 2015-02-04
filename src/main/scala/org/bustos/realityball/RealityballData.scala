@@ -26,10 +26,16 @@ class RealityballData {
 
   def playerFromRetrosheetId(retrosheetId: String, year: String): Player = {
     db.withSession { implicit session =>
-      val playerList = playersTable.filter({ x => x.id === retrosheetId && x.year === year }).list
-      if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId)
-      else if (playerList.length > 1) throw new IllegalStateException("Non Unique Retrosheet ID: " + retrosheetId)
-      else playerList.head
+      if (year == "") {
+        val playerList = playersTable.filter({ x => x.id === retrosheetId }).list
+        if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId)
+        else playerList.head
+      } else {
+        val playerList = playersTable.filter({ x => x.id === retrosheetId && x.year === year }).list
+        if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId + " in year " + year)
+        else if (playerList.length > 1) throw new IllegalStateException("Non Unique Retrosheet ID: " + retrosheetId + " in year " + year)
+        else playerList.head
+      }
     }
   }
 

@@ -35,6 +35,7 @@ object RealityballRecords {
   case class GameScoring(id: String, var umphome: String, var ump1b: String, var ump2b: String, var ump3b: String, var howscored: String,
                          var timeofgame: Int, var attendance: Int, var wp: String, var lp: String, var save: String)
   case class GameOdds(var id: String, var visitorML: Int, var homeML: Int, var overUnder: Double, var overUnderML: Int)
+  case class InjuryReport(mlbId: String, reportTime: String, injuryReportDate: String, status: String, dueBack: String, injury: String)
 
   case class BallparkDaily(var id: String, var date: String, var RHhits: Int, var RHtotalBases: Int, var RHatBat: Int, var LHhits: Int, var LHtotalBases: Int, var LHatBat: Int)
   case class Ballpark(id: String, name: String, aka: String, city: String, state: String, start: String, end: String, league: String, notes: String)
@@ -58,6 +59,7 @@ object RealityballRecords {
   val hitterStats = TableQuery[HitterDailyStatsTable]
   val hitterVolatilityStats = TableQuery[HitterStatsVolatilityTable]
   val idMappingTable = TableQuery[IdMappingTable]
+  val injuryReportTable = TableQuery[InjuryReportTable]
   val pitcherDailyTable = TableQuery[PitcherDailyTable]
   val pitcherFantasy = TableQuery[PitcherFantasyTable]
   val pitcherFantasyMoving = TableQuery[PitcherFantasyMovingTable]
@@ -152,6 +154,17 @@ class GameOddsTable(tag: Tag) extends Table[GameOdds](tag, "gameOdds") {
   def overUnderML = column[Int]("overUnderML")
 
   def * = (id, visitorML, homeML, overUnder, overUnderML) <> (GameOdds.tupled, GameOdds.unapply)
+}
+
+class InjuryReportTable(tag: Tag) extends Table[InjuryReport](tag, "InjuryReport") {
+  def mlbId = column[String]("mlbId")
+  def reportTime = column[String]("reportTime")
+  def injuryReportDate = column[String]("injuryReportDate")
+  def status = column[String]("status")
+  def dueBack = column[String]("dueBack")
+  def injury = column[String]("injury")
+
+  def * = (mlbId, reportTime, injuryReportDate, status, dueBack, injury) <> (InjuryReport.tupled, InjuryReport.unapply)
 }
 
 class BallparkDailiesTable(tag: Tag) extends Table[BallparkDaily](tag, "ballparkDailies") {
