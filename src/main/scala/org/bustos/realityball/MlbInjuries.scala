@@ -36,7 +36,7 @@ class MlbInjuries extends Chrome {
 
   val reportTimeString: String = {
     val currentTime = new DateTime
-    val formatter = DateTimeFormat.forPattern("yyyyMMdd HH:mm:ss z");
+    val formatter = DateTimeFormat.forPattern("yyyyMMdd HH:mm:ss z")
     formatter.print(currentTime)
   }
 

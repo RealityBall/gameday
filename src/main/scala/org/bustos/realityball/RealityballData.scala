@@ -1,7 +1,7 @@
 package org.bustos.realityball
 
-import java.util.Date
-import java.text.SimpleDateFormat
+import org.joda.time._
+import org.joda.time.format._
 import scala.slick.driver.MySQLDriver.simple._
 import scala.util.Properties.envOrNone
 import spray.json._
@@ -26,16 +26,19 @@ class RealityballData {
 
   def playerFromRetrosheetId(retrosheetId: String, year: String): Player = {
     db.withSession { implicit session =>
-      if (year == "") {
-        val playerList = playersTable.filter({ x => x.id === retrosheetId }).list
-        if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId)
-        else playerList.head
-      } else {
-        val playerList = playersTable.filter({ x => x.id === retrosheetId && x.year === year }).list
-        if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId + " in year " + year)
-        else if (playerList.length > 1) throw new IllegalStateException("Non Unique Retrosheet ID: " + retrosheetId + " in year " + year)
-        else playerList.head
+      val playerList = {
+        if (year == "") {
+          val playerList = playersTable.filter({ x => x.id === retrosheetId }).list
+          if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId)
+          else playerList
+        } else {
+          val playerList = playersTable.filter({ x => x.id === retrosheetId && x.year === year }).list
+          if (playerList.isEmpty) throw new IllegalStateException("No one found with Retrosheet ID: " + retrosheetId + " in year " + year)
+          else if (playerList.length > 1) throw new IllegalStateException("Non Unique Retrosheet ID: " + retrosheetId + " in year " + year)
+          else playerList
+        }
       }
+      playerList.head
     }
   }
 
@@ -471,21 +474,40 @@ class RealityballData {
       if (teamMeta.isEmpty) List.empty[(String, Double)]
       else {
         val weather = new Weather(teamMeta.head.zipCode)
-        val dateFormat = new SimpleDateFormat("yyyyMMdd HH:mm");
+        val formatter = DateTimeFormat.forPattern("MM/dd H:mm a")
         weather.hourlyForecasts.map({ x =>
           {
-            val date = new Date(x.FCTTIME.epoch.toLong * 1000)
-            (dateFormat.format(date), x.temp.english.toDouble)
+            val date = new DateTime(x.FCTTIME.epoch.toLong * 1000)
+            (formatter.print(date), x.temp.english.toDouble)
           }
         })
       }
     }
   }
 
-  def schedule(team: String, year: String): List[GamedaySchedule] = {
+  def schedule(team: String, year: String): List[FullGameInfo] = {
     db.withSession { implicit session =>
-      if (year == "All") gamedayScheduleTable.filter({ x => x.homeTeam === team || (x.visitingTeam === team) }).sortBy(_.date).list
-      else gamedayScheduleTable.filter({ x => (x.homeTeam === team) || (x.visitingTeam === team) }).sortBy(_.date).list
+      val formatter = DateTimeFormat.forPattern("yyyyMMdd")
+      val lookingOut = formatter.print((new DateTime).plusMonths(3))
+      val schedule = {
+        if (year == "All") gamedayScheduleTable.filter({ x => ((x.homeTeam === team) || (x.visitingTeam === team)) && x.date < lookingOut }).sortBy(_.date).list
+        else gamedayScheduleTable.filter({ x => ((x.homeTeam === team) || (x.visitingTeam === team)) && x.date < lookingOut }).sortBy(_.date).list
+      }
+      schedule.reverse.map { x =>
+        val oddsForGame = gameOddsTable.filter({ y => y.id === x.id }).list
+        if (oddsForGame.isEmpty) FullGameInfo(x, GameOdds("", 0, 0, 0.0, 0))
+        else FullGameInfo(x, oddsForGame.head)
+      }
+    }
+  }
+
+  def injuries(team: String): List[InjuryReport] = {
+    db.withSession { implicit session =>
+      val injuryReports = for {
+        injuries <- injuryReportTable
+        ids <- idMappingTable if injuries.mlbId === ids.mlbId
+      } yield (ids.mlbName, injuries.reportTime, injuries.injuryReportDate, injuries.status, injuries.dueBack, injuries.injury)
+      injuryReports.list.map({ x => InjuryReport(x._1, x._2, x._3, x._4, x._5, x._6) })
     }
   }
 

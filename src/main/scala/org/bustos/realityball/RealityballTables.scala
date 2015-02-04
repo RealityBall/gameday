@@ -35,6 +35,7 @@ object RealityballRecords {
   case class GameScoring(id: String, var umphome: String, var ump1b: String, var ump2b: String, var ump3b: String, var howscored: String,
                          var timeofgame: Int, var attendance: Int, var wp: String, var lp: String, var save: String)
   case class GameOdds(var id: String, var visitorML: Int, var homeML: Int, var overUnder: Double, var overUnderML: Int)
+  case class FullGameInfo(schedule: GamedaySchedule, odds: GameOdds)
   case class InjuryReport(mlbId: String, reportTime: String, injuryReportDate: String, status: String, dueBack: String, injury: String)
 
   case class BallparkDaily(var id: String, var date: String, var RHhits: Int, var RHtotalBases: Int, var RHatBat: Int, var LHhits: Int, var LHtotalBases: Int, var LHatBat: Int)
@@ -80,6 +81,9 @@ object RealityballJsonProtocol extends DefaultJsonProtocol {
   implicit val pitcherDataFormat = jsonFormat2(PitcherData)
   implicit val teamFormat = jsonFormat12(Team)
   implicit val gamedayScheduleFormat = jsonFormat16(GamedaySchedule)
+  implicit val gameOddsFormat = jsonFormat5(GameOdds)
+  implicit val fullGameInfoFormat = jsonFormat2(FullGameInfo)
+  implicit val injuryReportFormat = jsonFormat6(InjuryReport)
 }
 
 class TeamsTable(tag: Tag) extends Table[Team](tag, "teams") {
