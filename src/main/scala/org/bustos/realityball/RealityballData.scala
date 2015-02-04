@@ -88,23 +88,25 @@ class RealityballData {
       val mapping = mappingForRetroId(playerMnemonic)
       if (year == "All") {
         val player = playersTable.filter(_.id === playerMnemonic).list.head
+        val lineupRegime = hitterStats.filter(_.id === playerMnemonic).map(_.lineupPositionRegime).avg.run.get
         val RHatBats = hitterRawRH.filter(_.id === playerMnemonic).map(_.RHatBat).sum.run.get
         val LHatBats = hitterRawLH.filter(_.id === playerMnemonic).map(_.LHatBat).sum.run.get
         val gamesQuery = for {
           r <- hitterRawLH if r.id === playerMnemonic;
           l <- hitterRawRH if (l.id === playerMnemonic && l.date === r.date)
         } yield (1)
-        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
+        val summary = PlayerSummary(playerMnemonic, lineupRegime, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
         PlayerData(player, summary)
       } else {
         val player = playersTable.filter({ x => x.id === playerMnemonic && x.year.startsWith(year) }).list.head
+        val lineupRegime = hitterStats.filter({ x => x.id === playerMnemonic && x.date.startsWith(year) }).map(_.lineupPositionRegime).avg.run.get
         val RHatBats = hitterRawRH.filter({ x => x.id === playerMnemonic && x.date.startsWith(year) }).map(_.RHatBat).sum.run.get
         val LHatBats = hitterRawLH.filter({ x => x.id === playerMnemonic && x.date.startsWith(year) }).map(_.LHatBat).sum.run.get
         val gamesQuery = for {
           r <- hitterRawLH if r.id === playerMnemonic && r.date.startsWith(year);
           l <- hitterRawRH if (l.id === playerMnemonic && l.date === r.date)
         } yield (1)
-        val summary = PlayerSummary(playerMnemonic, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
+        val summary = PlayerSummary(playerMnemonic, lineupRegime, RHatBats, LHatBats, gamesQuery.length.run, mapping.mlbId, mapping.brefId, mapping.espnId)
         PlayerData(player, summary)
       }
     }
@@ -116,19 +118,21 @@ class RealityballData {
       val mapping = mappingForRetroId(playerMnemonic)
       if (year == "All") {
         val player = playersTable.filter(_.id === playerMnemonic).list.head
+        val daysSinceLastApp = pitcherStats.filter(_.id === playerMnemonic).map(_.daysSinceLastApp).avg.run.get
         val win = pitcherStats.filter(x => x.id === playerMnemonic && x.win === 1).length.run
         val loss = pitcherStats.filter(x => x.id === playerMnemonic && x.loss === 1).length.run
         val save = pitcherStats.filter(x => x.id === playerMnemonic && x.save === 1).length.run
         val games = pitcherStats.filter(x => x.id === playerMnemonic).length.run
-        val summary = PitcherSummary(playerMnemonic, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
+        val summary = PitcherSummary(playerMnemonic, daysSinceLastApp, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
         PitcherData(player, summary)
       } else {
         val player = playersTable.filter(x => x.id === playerMnemonic && x.year.startsWith(year)).list.head
+        val daysSinceLastApp = pitcherStats.filter(x => x.id === playerMnemonic && x.date.startsWith(year)).map(_.daysSinceLastApp).avg.run.get
         val win = pitcherStats.filter(x => x.id === playerMnemonic && x.win === 1 && x.date.startsWith(year)).length.run
         val loss = pitcherStats.filter(x => x.id === playerMnemonic && x.loss === 1 && x.date.startsWith(year)).length.run
         val save = pitcherStats.filter(x => x.id === playerMnemonic && x.save === 1 && x.date.startsWith(year)).length.run
         val games = pitcherStats.filter(x => x.id === playerMnemonic && x.date.startsWith(year)).length.run
-        val summary = PitcherSummary(playerMnemonic, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
+        val summary = PitcherSummary(playerMnemonic, daysSinceLastApp, win, loss, save, games, mapping.mlbId, mapping.brefId, mapping.espnId)
         PitcherData(player, summary)
       }
     }
@@ -503,8 +507,9 @@ class RealityballData {
 
   def injuries(team: String): List[InjuryReport] = {
     db.withSession { implicit session =>
+      val reportTime = injuryReportTable.map(_.reportTime).max.run.get
       val injuryReports = for {
-        injuries <- injuryReportTable
+        injuries <- injuryReportTable if injuries.reportTime === reportTime
         ids <- idMappingTable if injuries.mlbId === ids.mlbId
       } yield (ids.mlbName, injuries.reportTime, injuries.injuryReportDate, injuries.status, injuries.dueBack, injuries.injury)
       injuryReports.list.map({ x => InjuryReport(x._1, x._2, x._3, x._4, x._5, x._6) })

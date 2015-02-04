@@ -1,5 +1,7 @@
 package org.bustos.realityball
 
+import org.joda.time._
+import org.joda.time.format._
 import scala.slick.driver.MySQLDriver.simple._
 import scala.util.Properties.envOrElse
 
@@ -18,5 +20,7 @@ object RealityballConfig {
     val mysqlPassword = envOrElse("MLB_MYSQL_PASSWORD", "")
     Database.forURL(mysqlURL, driver = "com.mysql.jdbc.Driver", user = mysqlUser, password = mysqlPassword)
   }
+
+  val CcyymmddFormatter = DateTimeFormat.forPattern("yyyyMMdd")
 
 }

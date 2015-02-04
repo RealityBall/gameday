@@ -1,5 +1,6 @@
 package org.bustos.realityball
 
+import org.joda.time._
 import scala.slick.driver.MySQLDriver.simple._
 import scala.slick.lifted.{ ProvenShape, ForeignKeyQuery }
 import spray.json._
@@ -10,19 +11,19 @@ object RealityballRecords {
 
   case class Statistic(var total: Double, var rh: Double, var lh: Double)
   case class StatisticInputs(var totalNumer: Int, var totalDenom: Int, var rhNumer: Int, var rhDenom: Int, var lhNumer: Int, var lhDenom: Int)
-  case class RunningHitterData(ba: Queue[StatisticInputs], obp: Queue[StatisticInputs], slugging: Queue[StatisticInputs], fantasy: Map[String, Queue[Statistic]])
+  case class RunningHitterData(lineupPosition: Queue[Int], ba: Queue[StatisticInputs], obp: Queue[StatisticInputs], slugging: Queue[StatisticInputs], fantasy: Map[String, Queue[Statistic]])
   case class Team(year: String, mnemonic: String, league: String, city: String, name: String, site: String, zipCode: String,
                   mlbComId: String, mlbComName: String, timeZone: String, coversComId: String, coversComName: String)
 
   case class BattingAverageObservation(date: String, bAvg: Double, lhBAvg: Double, rhBAvg: Double)
 
   case class Player(id: String, year: String, lastName: String, firstName: String, batsWith: String, throwsWith: String, team: String, position: String)
-  case class PlayerSummary(id: String, RHatBats: Int, LHatBats: Int, games: Int, mlbId: String, brefId: String, espnId: String)
-  case class PitcherSummary(id: String, wins: Int, losses: Int, saves: Int, games: Int, mlbId: String, brefId: String, espnId: String)
+  case class PlayerSummary(id: String, lineupRegime: Int, RHatBats: Int, LHatBats: Int, games: Int, mlbId: String, brefId: String, espnId: String)
+  case class PitcherSummary(id: String, daysSinceLastApp: Int, wins: Int, losses: Int, saves: Int, games: Int, mlbId: String, brefId: String, espnId: String)
   case class PlayerData(meta: Player, appearances: PlayerSummary)
   case class PitcherData(meta: Player, appearances: PitcherSummary)
 
-  case class PitcherDaily(id: String, game: String, date: String, opposing: String, var win: Int, var loss: Int, var save: Int,
+  case class PitcherDaily(id: String, game: String, date: String, var daysSinceLastApp: Int, opposing: String, var win: Int, var loss: Int, var save: Int,
                           var hits: Int, var walks: Int, var hitByPitch: Int, var strikeOuts: Int, var groundOuts: Int, var flyOuts: Int,
                           var earnedRuns: Int, var outs: Int, var shutout: Boolean, var noHitter: Boolean, var pitches: Int, var balls: Int)
 
@@ -75,8 +76,8 @@ import RealityballRecords._
 object RealityballJsonProtocol extends DefaultJsonProtocol {
   import RealityballRecords._
   implicit val playerFormat = jsonFormat8(Player)
-  implicit val playerSummaryFormat = jsonFormat7(PlayerSummary)
-  implicit val pitcherSummaryFormat = jsonFormat8(PitcherSummary)
+  implicit val playerSummaryFormat = jsonFormat8(PlayerSummary)
+  implicit val pitcherSummaryFormat = jsonFormat9(PitcherSummary)
   implicit val playerDataFormat = jsonFormat2(PlayerData)
   implicit val pitcherDataFormat = jsonFormat2(PitcherData)
   implicit val teamFormat = jsonFormat12(Team)
@@ -220,6 +221,7 @@ class PitcherDailyTable(tag: Tag) extends Table[PitcherDaily](tag, "pitcherDaily
   def id = column[String]("id");
   def game = column[String]("game");
   def date = column[String]("date")
+  def daysSinceLastApp = column[Int]("daysSinceLastApp")
   def opposing = column[String]("opposing")
 
   def win = column[Int]("win")
@@ -240,7 +242,7 @@ class PitcherDailyTable(tag: Tag) extends Table[PitcherDaily](tag, "pitcherDaily
 
   def pk = index("pk_id_date", (id, game)) // Duplicate issue with Joaquin Benoit on 20100910
 
-  def * = (id, game, date, opposing, win, loss, save, hits, walks, hitByPitch, strikeOuts, groundOuts, flyOuts, earnedRuns, outs, shutout, noHitter, pitches, balls) <> (PitcherDaily.tupled, PitcherDaily.unapply)
+  def * = (id, game, date, daysSinceLastApp, opposing, win, loss, save, hits, walks, hitByPitch, strikeOuts, groundOuts, flyOuts, earnedRuns, outs, shutout, noHitter, pitches, balls) <> (PitcherDaily.tupled, PitcherDaily.unapply)
 }
 
 class PlayersTable(tag: Tag) extends Table[Player](tag, "players") {
@@ -310,9 +312,10 @@ class HitterRawRHStatsTable(tag: Tag) extends Table[(String, String, String, Int
     (date, id, gameId, side, RHatBat, RHsingle, RHdouble, RHtriple, RHhomeRun, RHRBI, RHruns, RHbaseOnBalls, RHhitByPitch, RHsacFly, RHsacHit)
 }
 
-class HitterDailyStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double])](tag, "hitterDailyStats") {
+class HitterDailyStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double])](tag, "hitterDailyStats") {
 
-  def date = column[String]("date"); def id = column[String]("id"); def lineupPosition = column[Int]("lineupPosition");
+  def date = column[String]("date"); def id = column[String]("id");
+  def lineupPosition = column[Int]("lineupPosition"); def lineupPositionRegime = column[Int]("lineupPositionRegime")
   def gameId = column[String]("gameId"); def side = column[Int]("side");
   def atBats = column[Int]("ab"); def plateAppearances = column[Int]("pa")
   def RHdailyBattingAverage = column[Option[Double]]("RHdailyBattingAverage")
@@ -330,7 +333,7 @@ class HitterDailyStatsTable(tag: Tag) extends Table[(String, String, String, Int
 
   def pk = index("pk_id_date", (id, date)) // First game of double headers are ignored for now
 
-  def * = (date, id, gameId, side, lineupPosition, atBats, plateAppearances,
+  def * = (date, id, gameId, side, lineupPosition, lineupPositionRegime, atBats, plateAppearances,
     RHdailyBattingAverage, LHdailyBattingAverage, dailyBattingAverage,
     RHbattingAverage, LHbattingAverage, battingAverage,
     RHonBasePercentage, LHonBasePercentage, onBasePercentage,
