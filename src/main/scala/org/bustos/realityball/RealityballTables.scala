@@ -270,7 +270,7 @@ class IdMappingTable(tag: Tag) extends Table[IdMapping](tag, "idMapping") {
   def * = (mlbId, mlbName, mlbTeam, brefId, brefName, espnId, espnName, retroId, retroName) <> (IdMapping.tupled, IdMapping.unapply)
 }
 
-class HitterRawLHStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)](tag, "hitterRawLHstats") {
+class HitterRawLHStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)](tag, "hitterRawLHstats") {
   def date = column[String]("date"); def id = column[String]("id");
   def gameId = column[String]("gameId"); def side = column[Int]("side");
   def LHatBat = column[Int]("LHatBat")
@@ -284,14 +284,17 @@ class HitterRawLHStatsTable(tag: Tag) extends Table[(String, String, String, Int
   def LHhitByPitch = column[Int]("LHhitByPitch")
   def LHsacFly = column[Int]("LHsacFly")
   def LHsacHit = column[Int]("LHsacHit")
+  def LHstrikeOut = column[Int]("LHstrikeOut")
+  def LHflyBall = column[Int]("LHflyBall")
+  def LHgroundBall = column[Int]("LHgroundBall")
 
   def pk = index("pk_id_date", (id, date)) // First game of double headers are ignored for now
 
-  def * : ProvenShape[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)] =
-    (date, id, gameId, side, LHatBat, LHsingle, LHdouble, LHtriple, LHhomeRun, LHRBI, LHruns, LHbaseOnBalls, LHhitByPitch, LHsacFly, LHsacHit)
+  def * : ProvenShape[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)] =
+    (date, id, gameId, side, LHatBat, LHsingle, LHdouble, LHtriple, LHhomeRun, LHRBI, LHruns, LHbaseOnBalls, LHhitByPitch, LHsacFly, LHsacHit, LHstrikeOut, LHflyBall, LHgroundBall)
 }
 
-class HitterRawRHStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)](tag, "hitterRawRHstats") {
+class HitterRawRHStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)](tag, "hitterRawRHstats") {
   def date = column[String]("date"); def id = column[String]("id");
   def gameId = column[String]("gameId"); def side = column[Int]("side");
   def RHatBat = column[Int]("RHatBat")
@@ -305,11 +308,14 @@ class HitterRawRHStatsTable(tag: Tag) extends Table[(String, String, String, Int
   def RHhitByPitch = column[Int]("RHhitByPitch")
   def RHsacFly = column[Int]("RHsacFly")
   def RHsacHit = column[Int]("RHsacHit")
+  def RHstrikeOut = column[Int]("RHstrikeOut")
+  def RHflyBall = column[Int]("RHflyBall")
+  def RHgroundBall = column[Int]("RHgroundBall")
 
   def pk = index("pk_id_date", (id, date)) // First game of double headers are ignored for now
 
-  def * : ProvenShape[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)] =
-    (date, id, gameId, side, RHatBat, RHsingle, RHdouble, RHtriple, RHhomeRun, RHRBI, RHruns, RHbaseOnBalls, RHhitByPitch, RHsacFly, RHsacHit)
+  def * : ProvenShape[(String, String, String, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)] =
+    (date, id, gameId, side, RHatBat, RHsingle, RHdouble, RHtriple, RHhomeRun, RHRBI, RHruns, RHbaseOnBalls, RHhitByPitch, RHsacFly, RHsacHit, RHstrikeOut, RHflyBall, RHgroundBall)
 }
 
 class HitterDailyStatsTable(tag: Tag) extends Table[(String, String, String, Int, Int, Int, Int, Int, Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double])](tag, "hitterDailyStats") {

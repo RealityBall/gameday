@@ -51,12 +51,18 @@ class RealityballData {
     }
   }
 
-  def playerFromName(firstName: String, lastName: String, year: String): Player = {
+  def playerFromName(firstName: String, lastName: String, year: String, team: String): Player = {
     db.withSession { implicit session =>
       val playerList = playersTable.filter({ x => x.firstName.like(firstName + "%") && x.lastName === lastName && x.year === year }).list
       if (playerList.isEmpty) throw new IllegalStateException("No one found by the name of: " + firstName + " " + lastName)
-      else if (playerList.length > 1) throw new IllegalStateException("Non Unique Name: " + firstName + " " + lastName)
-      else playerList.head
+      else if (playerList.length > 1) {
+        if (team != "") {
+          val teamPlayerList = playersTable.filter({ x => x.firstName.like(firstName + "%") && x.lastName === lastName && x.year === year && x.team === team }).list
+          if (teamPlayerList.isEmpty) throw new IllegalStateException("No one found by the name of: " + firstName + " " + lastName)
+          else if (teamPlayerList.length > 1) throw new IllegalStateException("Non Unique Name: " + firstName + " " + lastName)
+          else teamPlayerList.head
+        } else throw new IllegalStateException("Non Unique Name: " + firstName + " " + lastName)
+      } else playerList.head
     }
   }
 
@@ -325,6 +331,40 @@ class RealityballData {
     }
   }
 
+  def batterStyleCounts(id: String, year: String): List[(String, Double)] = {
+    db.withSession { implicit session =>
+      if (year == "All") {
+        val q = Q[String, (Double, Double, Double, Double)] + """
+              select
+                sum(RHstrikeOut + LHstrikeOut) as souts,
+                sum(RHflyBall + LHflyBall) as fly,
+                sum(RHgroundBall + LHgroundBall) as ground,
+                sum(RHbaseOnBalls + LHbaseOnBalls + RHhitByPitch + LHhitByPitch) as baseOnBalls
+              from
+              	hitterRawLHStats a, hitterRawRHStats b
+              where
+              	a.id = ? and a.id = b.id and a.gameId = b.gameId
+            """
+        val result = q(id).first
+        List(("Strikeouts", result._1), ("Flyball", result._2), ("Groundball", result._3), ("Base On Balls", result._4))
+      } else {
+        val q = Q[(String, String), (Double, Double, Double, Double)] + """
+              select
+                sum(RHstrikeOut + LHstrikeOut) as souts,
+                sum(RHflyBall + LHflyBall) as fly,
+                sum(RHgroundBall + LHgroundBall) as ground,
+                sum(RHbaseOnBalls + LHbaseOnBalls + RHhitByPitch + LHhitByPitch) as baseOnBalls
+              from
+              	hitterRawLHStats a, hitterRawRHStats b
+              where
+              	a.id = ? and a.id = b.id and a.gameId = b.gameId and instr(a.date, ?) > 0
+              """
+        val result = q(id, year).first
+        List(("Strikeouts", result._1), ("Flyball", result._2), ("Groundball", result._3), ("Base On Balls", result._4))
+      }
+    }
+  }
+
   def outs(id: String, year: String): List[(String, Double, Double, Double)] = {
     db.withSession { implicit session =>
       pitcherDailyQuery(id, year).map(p => (p.date, p.strikeOuts, p.flyOuts, p.groundOuts)).list.map({ x => (x._1, x._2.toDouble.max(0.001), x._3.toDouble.max(0.001), x._4.toDouble.max(0.001)) })
@@ -472,17 +512,17 @@ class RealityballData {
     }
   }
 
-  def ballparkTemp(team: String, year: String): List[(String, Double)] = {
+  def ballparkConditions(team: String, year: String): List[(String, Double, Double)] = {
     db.withSession { implicit session =>
       val teamMeta = teamsTable.filter({ x => x.year === "2014" && x.mnemonic === team }).list
-      if (teamMeta.isEmpty) List.empty[(String, Double)]
+      if (teamMeta.isEmpty) List.empty[(String, Double, Double)]
       else {
         val weather = new Weather(teamMeta.head.zipCode)
-        val formatter = DateTimeFormat.forPattern("MM/dd H:mm a")
+        val formatter = DateTimeFormat.forPattern("E h:mm a")
         weather.hourlyForecasts.map({ x =>
           {
             val date = new DateTime(x.FCTTIME.epoch.toLong * 1000)
-            (formatter.print(date), x.temp.english.toDouble)
+            (formatter.print(date), x.temp.english.toDouble, x.pop.toDouble)
           }
         })
       }
@@ -494,14 +534,10 @@ class RealityballData {
       val formatter = DateTimeFormat.forPattern("yyyyMMdd")
       val lookingOut = formatter.print((new DateTime).plusMonths(3))
       val schedule = {
-        if (year == "All") gamedayScheduleTable.filter({ x => ((x.homeTeam === team) || (x.visitingTeam === team)) && x.date < lookingOut }).sortBy(_.date).list
-        else gamedayScheduleTable.filter({ x => ((x.homeTeam === team) || (x.visitingTeam === team)) && x.date < lookingOut }).sortBy(_.date).list
+        if (year == "All") (gamedayScheduleTable join gameOddsTable on (_.id === _.id)).filter({ x => ((x._1.homeTeam === team) || (x._1.visitingTeam === team)) && x._1.date < lookingOut }).sortBy(_._1.date)
+        else (gamedayScheduleTable join gameOddsTable on (_.id === _.id)).filter({ x => ((x._1.homeTeam === team) || (x._1.visitingTeam === team)) && x._1.date < lookingOut }).sortBy(_._1.date)
       }
-      schedule.reverse.map { x =>
-        val oddsForGame = gameOddsTable.filter({ y => y.id === x.id }).list
-        if (oddsForGame.isEmpty) FullGameInfo(x, GameOdds("", 0, 0, 0.0, 0))
-        else FullGameInfo(x, oddsForGame.head)
-      }
+      schedule.list.reverse.map { case (x, y) => FullGameInfo(x, y) }
     }
   }
 

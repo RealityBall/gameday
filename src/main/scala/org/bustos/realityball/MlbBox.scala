@@ -1,7 +1,7 @@
 package org.bustos.realityball
 
-import java.util.Date
-import java.text.SimpleDateFormat;
+import org.joda.time._
+import org.joda.time.format._
 import org.scalatest._
 import selenium._
 import org.scalatest.time.{ Span, Seconds }
@@ -17,16 +17,14 @@ import RealityballRecords._
 import RealityballConfig._
 
 object MlbBox {
+
   case class BatterLinescore(id: String, ab: Int, r: Int, h: Int, rbi: Int, bb: Int, so: Int, log: Int, avg: Double)
   case class PitcherLinescore(id: String, ip: Double, h: Int, r: Int, er: Int, bb: Int, so: Int, hr: Int, era: Double)
-  case class GameInfo(id: String, balks: String, pitchesStrikes: String, groundFly: String, batterFaced: String, umpires: String, weather: String, wind: String, time: String, attendance: String, venue: String)
+  case class GameInfo(id: String, pitchesStrikes: String, groundFly: String, batterFaced: String, umpires: String, weather: String, wind: String, time: String, attendance: String, venue: String)
 
-  val dateFormat = new SimpleDateFormat("yyyy_MM_dd");
-  val cleanDateFormat = new SimpleDateFormat("yyyy_MM_dd");
-  val yearFormat = new SimpleDateFormat("yyyy");
 }
 
-class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
+class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome {
 
   import MlbBox._
 
@@ -35,16 +33,16 @@ class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
   val realityballData = new RealityballData
   val logger = LoggerFactory.getLogger(getClass)
   val mlbIdExpression: Regex = "(.*)=(.*)".r
-  val gameInfoExpression: Regex = "Balk: (.*)Pitches-strikes: (.*)Groundouts-flyouts: (.*)Batters faced: (.*)Umpires: (.*)Weather: (.*)Wind: (.*)T: (.*)Att: (.*)Venue: (.*)".r
+  val gameInfoExpression: Regex = ".*Pitches-strikes: (.*)Groundouts-flyouts: (.*)Batters faced: (.*)Umpires: (.*)Weather: (.*)Wind: (.*)T: (.*)Att: (.*)Venue: (.*)".r
 
   logger.info("********************************")
-  logger.info("*** Retrieving box results for " + awayTeam + " @ " + homeTeam + " on " + dateFormat.format(date))
+  logger.info("*** Retrieving box results for " + awayTeam + " @ " + homeTeam + " on " + CcyymmddDelimFormatter.print(date))
   logger.info("********************************")
 
-  val gameId = homeTeam.toUpperCase + cleanDateFormat.format(date).toString
+  val gameId = homeTeam.toUpperCase + CcyymmddFormatter.print(date)
 
   val host = GamedayURL
-  go to host + "mlb/gameday/index.jsp?gid=" + dateFormat.format(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"
+  go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"
 
   var pitchCount = 0
   var awayBatterLinescores = List.empty[BatterLinescore]
@@ -55,7 +53,7 @@ class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
     url match {
-      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, yearFormat.format(date))
+      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, YearFormatter.print(date))
       case _                                 => throw new IllegalStateException("No player found")
     }
   }
@@ -135,8 +133,8 @@ class MlbBox(date: Date, awayTeam: String, homeTeam: String) extends Chrome {
       case Some(x) => {
         val gameInfoText = x.underlying.getAttribute("textContent")
         gameInfoText.replace("\n", "") match {
-          case gameInfoExpression(balk, pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue) => {
-            GameInfo(gameId, balk, pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue)
+          case gameInfoExpression(pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue) => {
+            GameInfo(gameId, pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue)
           }
         }
       }

@@ -1,7 +1,8 @@
 package org.bustos.realityball
 
+import org.joda.time._
+import org.joda.time.format._
 import java.io.File
-import java.util.Date
 import org.slf4j.LoggerFactory
 import scala.io.Source
 import scala.slick.driver.MySQLDriver.simple._
@@ -17,14 +18,13 @@ object Gameday extends App {
   val logger = LoggerFactory.getLogger(getClass)
   val realityballData = new RealityballData
 
-  def processGamePlays = {
+  def processGame = {
     logger.info("Updating plays...")
-    val game = new MlbPlays(new Date(114, 3, 22), "mia", "atl")
-  }
-
-  def processBoxScores = {
+    val game = new MlbPlays(new DateTime(2014, 4, 23, 0, 0), "mia", "atl")
     logger.info("Updating box scores...")
-    val box = new MlbBox(new Date(114, 3, 22), "mia", "atl")
+    val box = new MlbBox(new DateTime(2014, 4, 23, 0, 0), "mia", "atl")
+    val retrosheet = new RetrosheetFromGameday(box, game)
+    logger.info("")
   }
 
   def processSchedules(year: String) = {
@@ -78,10 +78,10 @@ object Gameday extends App {
     }
   }
 
-  processInjuries
+  //processInjuries
   //(2010 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
-  processBoxScores
-  processGamePlays
+  processGame
+  logger.info("Completed Processing")
 }
