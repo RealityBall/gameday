@@ -18,13 +18,14 @@ import RealityballConfig._
 
 object MlbBox {
 
-  case class BatterLinescore(id: String, ab: Int, r: Int, h: Int, rbi: Int, bb: Int, so: Int, log: Int, avg: Double)
-  case class PitcherLinescore(id: String, ip: Double, h: Int, r: Int, er: Int, bb: Int, so: Int, hr: Int, era: Double)
-  case class GameInfo(id: String, pitchesStrikes: String, groundFly: String, batterFaced: String, umpires: String, weather: String, wind: String, time: String, attendance: String, venue: String)
+  case class BatterLinescore(player: Player, starter: Boolean, ab: Int, r: Int, h: Int, rbi: Int, bb: Int, so: Int, log: Int, avg: Double)
+  case class PitcherLinescore(player: Player, ip: Double, h: Int, r: Int, er: Int, bb: Int, so: Int, hr: Int, era: Double)
+  case class GameInfo(id: String, pitchesStrikes: String, groundFly: String, batterFaced: String, umpires: String,
+                      temp: String, sky: String, windSpeed: String, windDir: String, time: String, attendance: String, venue: String)
 
 }
 
-class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome {
+class MlbBox(val game: Game) extends Chrome {
 
   import MlbBox._
 
@@ -32,23 +33,27 @@ class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome 
 
   val realityballData = new RealityballData
   val logger = LoggerFactory.getLogger(getClass)
-  val mlbIdExpression: Regex = "(.*)=(.*)".r
-  val gameInfoExpression: Regex = ".*Pitches-strikes: (.*)Groundouts-flyouts: (.*)Batters faced: (.*)Umpires: (.*)Weather: (.*)Wind: (.*)T: (.*)Att: (.*)Venue: (.*)".r
+
+  val mlbIdExpression = "(.*)=(.*)".r
+  val gameInfoExpression = ".*Pitches-strikes: (.*)Groundouts-flyouts: (.*)Batters faced: (.*)Umpires: (.*)Weather: (.*)Wind: (.*)T: (.*)Att: (.*)Venue: (.*)Compiled.*".r
+  val windExpression = """(.*) mph, (.*)\.""".r
+  val skyExpression = """(.*) degrees, (.*)\.""".r
+  val timeOfGameExpression = """(.*?):(.*?)[\. ](.*)""".r
+
+  val date = CcyymmddSlashDelimFormatter.parseDateTime(game.date)
+  val mlbHomeTeam = realityballData.mlbComIdFromRetrosheet(game.homeTeam)
+  val mlbVisitingTeam = realityballData.mlbComIdFromRetrosheet(game.visitingTeam)
 
   logger.info("********************************")
-  logger.info("*** Retrieving box results for " + awayTeam + " @ " + homeTeam + " on " + CcyymmddDelimFormatter.print(date))
+  logger.info("*** Retrieving box results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date))
   logger.info("********************************")
 
-  val gameId = homeTeam.toUpperCase + CcyymmddFormatter.print(date)
+  val gameId = game.homeTeam.toUpperCase + CcyymmddFormatter.print(date)
 
   val host = GamedayURL
-  go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + awayTeam.toLowerCase + "mlb_" + homeTeam.toLowerCase + "mlb_1&mode=box"
+  go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=box"
 
   var pitchCount = 0
-  var awayBatterLinescores = List.empty[BatterLinescore]
-  var homeBatterLinescores = List.empty[BatterLinescore]
-  var awayPitcherLinescores = List.empty[PitcherLinescore]
-  var homePitcherLinescores = List.empty[PitcherLinescore]
 
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
@@ -64,7 +69,11 @@ class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome 
         case thRow: RemoteWebElement => {
           val details = thRow.findElementsByTagName("td")
           val player = playerFromMlbUrl(details(0))
-          val linescore = BatterLinescore(playerFromMlbUrl(details(0)).id, details(1).getAttribute("textContent").toInt,
+          val playerClass = details(0).getAttribute("class")
+          val linescore = BatterLinescore(
+            player,
+            !playerClass.contains("ph"),
+            details(1).getAttribute("textContent").toInt,
             details(2).getAttribute("textContent").toInt,
             details(3).getAttribute("textContent").toInt,
             details(4).getAttribute("textContent").toInt,
@@ -99,7 +108,9 @@ class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome 
         case thRow: RemoteWebElement => {
           val details = thRow.findElementsByTagName("td")
           val player = playerFromMlbUrl(details(0))
-          val linescore = PitcherLinescore(playerFromMlbUrl(details(0)).id, details(1).getAttribute("textContent").toDouble,
+          val linescore = PitcherLinescore(
+            player,
+            details(1).getAttribute("textContent").toDouble,
             details(2).getAttribute("textContent").toInt,
             details(3).getAttribute("textContent").toInt,
             details(4).getAttribute("textContent").toInt,
@@ -128,13 +139,34 @@ class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome 
       case _ => throw new IllegalStateException("No linescores found")
     }
   }
+
   val gameInfo: GameInfo = {
     find("game-info-container") match {
       case Some(x) => {
         val gameInfoText = x.underlying.getAttribute("textContent")
         gameInfoText.replace("\n", "") match {
           case gameInfoExpression(pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue) => {
-            GameInfo(gameId, pitchesStrikes, groundFly, battersFaced, umpires, weather, wind, time, attendance, venue)
+            val timeOfGame = time match {
+              case timeOfGameExpression(hourCount, minuteCount, delayCount) => hourCount.toDouble * 60 + minuteCount.toDouble
+              case _ => 0.0
+            }
+            val temp = weather match {
+              case skyExpression(temp, sky) => temp
+              case _                        => ""
+            }
+            val sky = weather match {
+              case skyExpression(temp, sky) => sky
+              case _                        => ""
+            }
+            val windSpeed = wind match {
+              case windExpression(speed, dir) => speed
+              case _                          => ""
+            }
+            val windDirection = wind match {
+              case windExpression(speed, dir) => dir
+              case _                          => ""
+            }
+            GameInfo(gameId, pitchesStrikes, groundFly, battersFaced, umpires, temp, sky, windSpeed, windDirection, timeOfGame.toString, attendance.replaceAll(",", ""), venue.split(" ")(0))
           }
         }
       }
@@ -142,10 +174,40 @@ class MlbBox(date: DateTime, awayTeam: String, homeTeam: String) extends Chrome 
     }
   }
 
-  awayBatterLinescores = batterLinescores("away-team-batter")
-  homeBatterLinescores = batterLinescores("home-team-batter")
-  awayPitcherLinescores = pitcherLinescores("away-team-pitcher")
-  homePitcherLinescores = pitcherLinescores("home-team-pitcher")
+  val pitchingResults: List[(WebElement, WebElement)] = {
+    find("linescore-wrapper") match {
+      case Some(x) => x.underlying match {
+        case y: RemoteWebElement => y.findElementsByTagName("dt").toList.zip(y.findElementsByTagName("dd").toList)
+        case _                   => List.empty[(WebElement, WebElement)]
+      }
+      case _ => List.empty[(WebElement, WebElement)]
+    }
+  }
+
+  def pitcherForType(resultType: String): Player = {
+    val pitcherElement = pitchingResults.filter {
+      case (result, player) =>
+        result match {
+          case x: RemoteWebElement => x.getAttribute("textContent").contains(resultType + ":")
+          case _                   => false
+        }
+    }
+    if (pitcherElement.isEmpty) null
+    else {
+      playerFromMlbUrl(pitcherElement.head._2)
+    }
+  }
+
+  val winningPitcher = pitcherForType("W")
+  val losingPitcher = pitcherForType("L")
+  val savingPitcher = pitcherForType("SV")
+
+  val awayBatterLinescores = batterLinescores("away-team-batter")
+  val homeBatterLinescores = batterLinescores("home-team-batter")
+  val awayPitcherLinescores = pitcherLinescores("away-team-pitcher")
+  val homePitcherLinescores = pitcherLinescores("home-team-pitcher")
+  val awayStartingLineup = awayBatterLinescores.filter { _.starter }
+  val homeStartingLineup = homeBatterLinescores.filter { _.starter }
 
   quit
 }

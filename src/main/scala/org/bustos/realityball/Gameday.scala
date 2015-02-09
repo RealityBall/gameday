@@ -2,7 +2,7 @@ package org.bustos.realityball
 
 import org.joda.time._
 import org.joda.time.format._
-import java.io.File
+import java.io._
 import org.slf4j.LoggerFactory
 import scala.io.Source
 import scala.slick.driver.MySQLDriver.simple._
@@ -18,18 +18,19 @@ object Gameday extends App {
   val logger = LoggerFactory.getLogger(getClass)
   val realityballData = new RealityballData
 
-  def processGame = {
-    logger.info("Updating plays...")
-    val game = new MlbPlays(new DateTime(2014, 4, 23, 0, 0), "mia", "atl")
-    logger.info("Updating box scores...")
-    val box = new MlbBox(new DateTime(2014, 4, 23, 0, 0), "mia", "atl")
-    val retrosheet = new RetrosheetFromGameday(box, game)
-    logger.info("")
+  def processGamedayDate(eventFileDate: DateTime) = {
+    def processGame(game: Game) = {
+      val plays = new MlbPlays(game)
+      val box = new MlbBox(game)
+      val retrosheet = new RetrosheetFromGameday(box, plays)
+      logger.info("")
+    }
+    val eventFileName = DataRoot + "generatedData/" + eventFileDate.getYear + "/" + CcyymmddFormatter.print(eventFileDate) + ".eve"
+    new FileWriter(new File(eventFileName))
+    realityballData.games(eventFileDate).foreach { processGame(_) }
   }
 
   def processSchedules(year: String) = {
-    logger.info("Updating schedules for " + year + "...")
-
     db.withSession { implicit session =>
       gamedayScheduleTable.filter({ x => x.date startsWith year }).delete
       realityballData.teams(year).foreach(team => {
@@ -45,8 +46,6 @@ object Gameday extends App {
   }
 
   def processOdds(year: Int) = {
-    logger.info("Updating Odds for " + year + "...")
-
     var gameOdds = Map.empty[String, List[GameOdds]]
     db.withSession { implicit session =>
       gameOddsTable.filter({ x => x.id like ("%" + year + "%") }).delete
@@ -58,8 +57,6 @@ object Gameday extends App {
   }
 
   def processInjuries = {
-    logger.info("Updating injuries for...")
-
     var injuries = (new MlbInjuries).injuries
     db.withSession { implicit session =>
       injuries.foreach({ injuryReportTable += _ })
@@ -82,6 +79,11 @@ object Gameday extends App {
   //(2010 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
-  processGame
+
+  processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
+  //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
+  //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
+  processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
+  processGamedayDate(new DateTime(2014, 8, 24, 0, 0))
   logger.info("Completed Processing")
 }

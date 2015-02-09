@@ -23,6 +23,7 @@ object RealityballConfig {
 
   val CcyymmddFormatter = DateTimeFormat.forPattern("yyyyMMdd")
   val CcyymmddDelimFormatter = DateTimeFormat.forPattern("yyyy_MM_dd")
+  val CcyymmddSlashDelimFormatter = DateTimeFormat.forPattern("yyyy/MM/dd")
   val YearFormatter = DateTimeFormat.forPattern("yyyy")
 
 }

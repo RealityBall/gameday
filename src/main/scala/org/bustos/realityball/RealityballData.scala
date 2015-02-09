@@ -24,6 +24,18 @@ class RealityballData {
     }
   }
 
+  def mlbComIdFromRetrosheet(team: String): String = {
+    db.withSession { implicit session =>
+      teamsTable.filter(_.mnemonic === team).map(_.mlbComId).list.head
+    }
+  }
+
+  def games(date: DateTime): List[Game] = {
+    db.withSession { implicit session =>
+      gamesTable.filter({ x => x.date === CcyymmddSlashDelimFormatter.print(date) }).list
+    }
+  }
+
   def playerFromRetrosheetId(retrosheetId: String, year: String): Player = {
     db.withSession { implicit session =>
       val playerList = {
@@ -341,7 +353,7 @@ class RealityballData {
                 sum(RHgroundBall + LHgroundBall) as ground,
                 sum(RHbaseOnBalls + LHbaseOnBalls + RHhitByPitch + LHhitByPitch) as baseOnBalls
               from
-              	hitterRawLHStats a, hitterRawRHStats b
+              	hitterRawLHstats a, hitterRawRHstats b
               where
               	a.id = ? and a.id = b.id and a.gameId = b.gameId
             """
@@ -355,7 +367,7 @@ class RealityballData {
                 sum(RHgroundBall + LHgroundBall) as ground,
                 sum(RHbaseOnBalls + LHbaseOnBalls + RHhitByPitch + LHhitByPitch) as baseOnBalls
               from
-              	hitterRawLHStats a, hitterRawRHStats b
+              	hitterRawLHstats a, hitterRawRHstats b
               where
               	a.id = ? and a.id = b.id and a.gameId = b.gameId and instr(a.date, ?) > 0
               """
