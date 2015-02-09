@@ -387,7 +387,7 @@ class RealityballData {
     db.withSession { implicit session =>
       if (year == "All") {
         val q = Q[String, (Double, Double, Double)] + """
-              select sum(strikeOuts) as souts, sum(flyOuts) as fouts, sum(groudOuts) as gouts
+              select sum(strikeOuts) as souts, sum(flyOuts) as fouts, sum(groundOuts) as gouts
               from
                 pitcherDaily
               where
