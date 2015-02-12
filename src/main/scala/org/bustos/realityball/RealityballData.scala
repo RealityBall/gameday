@@ -36,6 +36,28 @@ class RealityballData {
     }
   }
 
+  def startingBatters(game: Game, side: Int, year: String): List[Player] = {
+    db.withSession { implicit session =>
+      val query = for {
+        hitters <- hitterStats if (hitters.gameId === game.id && hitters.lineupPosition > 0)
+        players <- playersTable if (players.id === hitters.id)
+      } yield (players, hitters)
+      query.filter({ x => x._1.year === year && x._2.side === side }).sortBy({ x => x._2.lineupPosition }).map({ x => x._1 }).list
+    }
+  }
+
+  def latestLineupRegime(game: Game, player: Player): Int = {
+    db.withSession { implicit session =>
+      hitterStats.filter({ x => x.id === player.id && x.date < game.date }).sortBy({ _.date.desc }).map({ _.lineupPositionRegime }).list.head
+    }
+  }
+
+  def latestFantasyData(game: Game, player: Player): HitterFantasyMoving = {
+    db.withSession { implicit session =>
+      hitterFantasyMoving.filter({ x => x.id === player.id && x.date < game.date }).sortBy({ _.date.desc }).list.head
+    }
+  }
+
   def playerFromRetrosheetId(retrosheetId: String, year: String): Player = {
     db.withSession { implicit session =>
       val playerList = {

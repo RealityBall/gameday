@@ -1,5 +1,6 @@
 package org.bustos.realityball
 
+import java.io._
 import org.joda.time._
 import org.joda.time.format._
 import org.scalatest._
@@ -36,12 +37,25 @@ class MlbPlays(game: Game) extends Chrome {
   val mlbHomeTeam = realityballData.mlbComIdFromRetrosheet(game.homeTeam)
   val mlbVisitingTeam = realityballData.mlbComIdFromRetrosheet(game.visitingTeam)
 
+  val pitcherChangeExpression = """Pitching Change: (.*) replaces.*""".r
+  val pinchRunnerExpression = """.*Pinch-runner (.*) replaces (.*)\..*""".r
+  val wildPitch = """.*With (.*) batting, wild pitch.*""".r
+
   logger.info("********************************")
   logger.info("*** Retrieving play results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date))
   logger.info("********************************")
 
-  val host = GamedayURL
-  go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=plays"
+  val fileName = DataRoot + "gamedayPages/" + date.getYear + "/" + game.visitingTeam + "_" + game.homeTeam + "_" + CcyymmddFormatter.print(date) + "_play_by_play.html"
+
+  if (new File(fileName).exists) {
+    val caps = DesiredCapabilities.chrome;
+    caps.setCapability("chrome.switches", Array("--disable-javascript"));
+
+    go to "file://" + fileName
+  } else {
+    val host = GamedayURL
+    go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=plays"
+  }
 
   var pitchCount = 0
 
@@ -92,7 +106,14 @@ class MlbPlays(game: Game) extends Chrome {
   }
 
   def atBatAdvancements(atBatResult: RemoteWebElement, batter: Player, team: String): String = {
-    runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.replace("\n", ""), batter, team, YearFormatter.print(date))
+    runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.
+      replace("\n", "").replace(" jr.", "").
+      replace(" a.  j.", " a").replace(" c.  j.", " c").replace(" b.  j.", " b").
+      replace(" l.  j.", " l").replace(" t.  j.", " t").replace(" j.  p.", " j").
+      replace(" j.  d.", " j").
+      replace(" juan carlos", " juan").replace(" john ryan", " john").
+      replace(" j.", " j").replace(" b.", " b").replace(" a.", " a").replace(" c.", " c"),
+      batter, team, YearFormatter.print(date))
   }
 
   def atBatPlayString(atBatResult: RemoteWebElement): String = {
@@ -101,12 +122,19 @@ class MlbPlays(game: Game) extends Chrome {
     else if (playDescription.contains("double")) "D"
     else if (playDescription.contains("triple")) "T"
     else if (playDescription.contains("homers")) "HR"
+    else if (playDescription.contains("hits an inside-the-park home run")) "HR"
     else if (playDescription.contains("hits a grand slam")) "HR"
+    else if (playDescription.contains(" hit by pitch.")) "HP"
+    else if (playDescription.contains(" walks.")) "W"
+    else if (playDescription.contains(" intentionally walks ")) "I"
+    else if (playDescription.contains("reaches on a fielding error") || playDescription.contains("reaches on a throwing error") || playDescription.contains("reaches on a force attempt")) "E"
+
     else if (playDescription.contains("strikes out") || playDescription.contains("called out on strikes")) "K"
     else if (playDescription.contains("flies out")) inPlayModifier("flies out to ", playDescription) + "/F"
     else if (playDescription.contains("pops out")) inPlayModifier("pops out to ", playDescription) + "/P"
     else if (playDescription.contains("reaches on a fielder's choice")) inPlayModifier("reaches on a fielder's choice, ", playDescription) + "/P"
     else if (playDescription.contains("reaches on catcher interference")) "C/E2"
+    else if (playDescription.contains("reaches on a missed catch error by pitcher")) "E1"
     else if (playDescription.contains("pops into a force out, ")) inPlayModifier("pops into a force out, ", playDescription) + "/P"
     else if (playDescription.contains("grounds out")) inPlayModifier("grounds out, ", playDescription) + "/G"
     else if (playDescription.contains("ground bunts into a force out")) inPlayModifier("ground bunts into a force out, , ", playDescription) + "/G"
@@ -118,78 +146,97 @@ class MlbPlays(game: Game) extends Chrome {
     else if (playDescription.contains("lines into a force out")) inPlayModifier("lines into a force out, ", playDescription) + "/L"
     else if (playDescription.contains("caught stealing 2nd base")) "CS2"
     else if (playDescription.contains("caught stealing 3rd base")) "CS3"
-    else if (playDescription.contains(" hit by pitch.")) "HP"
-    else if (playDescription.contains(" walks.")) "W"
-    else if (playDescription.contains(" intentionally walks ")) "I"
-    else if (playDescription.contains("reaches on a fielding error") || playDescription.contains("reaches on a throwing error") || playDescription.contains("reaches on a force attempt")) "E"
+    else if (playDescription.contains("caught stealing home")) "CSH"
+    else if (playDescription.contains("picks off")) "/PO"
     else {
       logger.warn("UNKOWN PLAY " + playDescription)
       ""
     }
   }
 
-  def player(playerElement: RemoteWebElement, tag: String, team: String): Player = {
+  def batterForPlay(playerElement: RemoteWebElement, tag: String, team: String): Player = {
 
     playerElement.findElementByClassName(tag) match {
       case foundPlayer: RemoteWebElement => {
         val lastName = runners.lastName(foundPlayer.getAttribute("textContent").split("\n")(2))
         val firstName = if (tag == "plays-atbat-batter") {
-          val batterNameExpression = (""".*\.(.*walks )?(.*upheld: )?([A-Z].*?) """ + lastName + """(\.)?(.*)""").r
-          val textContent = playerElement.getAttribute("textContent").replaceAll("\n", "")
-          println(textContent)
+          val batterNameExpression = (""".*\.(With )?(.*walks )?(.*upheld: )?(.*overturned: )?(With )?([A-Z].*?) """ + lastName + """(\.)?(.*)""").r
+          val textContent = playerElement.getAttribute("textContent").replaceAll("\n", "").split("Pitcher")(0)
+          logger.info("Play text: " + textContent)
           textContent match {
-            case batterNameExpression(walks, upheld, fName, place4, place5) => fName
+            case batterNameExpression(withT, walks, upheld, overturned, challengeWith, fName, place4, place5) => fName
             case _ => ""
           }
         } else ""
-        runners.playerFromString(firstName + " " + lastName, team, YearFormatter.print(date))
+        if (firstName == "") {
+          logger.warn("Batter was not involved in play")
+          null
+        } else runners.playerFromString(firstName + " " + lastName, team, YearFormatter.print(date))
       }
       case _ => throw new IllegalStateException("Could not find " + tag)
     }
   }
 
   def playForAtBat(atBat: RemoteWebElement, inningAndSide: HalfInning): Play = {
-    val team = {
-      if (inningAndSide.side == "1") game.homeTeam else game.visitingTeam
-    }
     val elementClass = atBat.getAttribute("class")
+    val batterTeam = { if (inningAndSide.side == "1") game.homeTeam else game.visitingTeam }
+    val pitcherTeam = { if (inningAndSide.side == "1") game.visitingTeam else game.homeTeam }
+
     if (elementClass.contains("plays-atbat") && !elementClass.contains("-pitcher") && !elementClass.contains("-batter")) {
-      val batter = player(atBat, "plays-atbat-batter", team)
-      val play = atBat.findElementByTagName("dt") match {
-        case atBatResult: RemoteWebElement => {
-          atBatPlayString(atBatResult) + atBatAdvancements(atBatResult, batter, team)
+      val batter = batterForPlay(atBat, "plays-atbat-batter", batterTeam)
+      if (batter == null) null
+      else {
+        val play = atBat.findElementByTagName("dt") match {
+          case atBatResult: RemoteWebElement => {
+            atBatPlayString(atBatResult) + atBatAdvancements(atBatResult, batter, batterTeam)
+          }
+          case _ => {
+            logger.warn("NO AT BAT RESULT FOUND")
+            ""
+          }
         }
-        case _ => {
-          logger.warn("NO AT BAT RESULT FOUND")
-          ""
+        val atBatPitches = atBat.findElementsByClassName("plays-pitch-result") match {
+          case pitches: java.util.List[WebElement] => {
+            pitches.foldLeft("")((x, y) => pitchResult(x, y))
+          }
+          case _ => {
+            logger.warn("NO PITCHES FOUND")
+            ""
+          }
         }
+        val latestPlay = Play(inningAndSide.inning, inningAndSide.side, batter.id, "00", atBatPitches, play)
+        logger.info("Play: " + latestPlay)
+        latestPlay
       }
-      val atBatPitches = atBat.findElementsByClassName("plays-pitch-result") match {
-        case pitches: java.util.List[WebElement] => {
-          pitches.foldLeft("")((x, y) => pitchResult(x, y))
-        }
-        case _ => {
-          logger.warn("NO PITCHES FOUND")
-          ""
-        }
-      }
-      val latestPlay = Play(inningAndSide.inning, inningAndSide.side, batter.id, "00", atBatPitches, play)
-      logger.info("Play: " + latestPlay)
-      latestPlay
     } else {
+      // Play actions
       val playDescription = atBat.getAttribute("textContent").replaceAll("\n", "")
-      val pitcherNameExpression = """Pitching Change: (.*) replaces.*""".r
+      if (playDescription.contains("Wild")) {
+        println(playDescription)
+      }
       playDescription match {
-        case pitcherNameExpression(name) => {
-          val team = if (inningAndSide.side == "1") game.visitingTeam else game.homeTeam
-          val player = runners.playerFromString(name, team, YearFormatter.print(date))
+        case pitcherChangeExpression(name) => {
+          val player = runners.playerFromString(name, pitcherTeam, YearFormatter.print(date))
           if (player.position != "P") logger.warn(player + " is not a pitcher")
           val latestPlay = if (inningAndSide.side == "1") Play(inningAndSide.inning, "0", player.id, "00", "\"" + player.firstName + " " + player.lastName + "\"", "sub")
           else Play(inningAndSide.inning, "1", player.id, "00", "\"" + player.firstName + " " + player.lastName + "\"", "sub")
           logger.info("Pitching Change: " + latestPlay)
           latestPlay
         }
-        case _ => null //throw new IllegalStateException("Could not determine pitcher's name: " + playDescription)
+        case pinchRunnerExpression(in, out) => {
+          runners.pinchRunner(in, out, batterTeam, YearFormatter.print(date))
+          null // TO DO: Generate substitution line
+        }
+        case wildPitch(name) => {
+          val player = runners.playerFromString(name, batterTeam, YearFormatter.print(date))
+          val advancements = runners.advancementString(playDescription.toLowerCase.replace(" jr.", ""), player, batterTeam, YearFormatter.print(date))
+          Play(inningAndSide.inning, inningAndSide.side, player.id, "00", "\"" + player.firstName + " " + player.lastName + "\"", "WP" + advancements)
+        }
+        case _ => {
+          if (!playDescription.startsWith("Pitcher") && !playDescription.startsWith("Batter"))
+            logger.warn("Action play was not decoded: " + playDescription)
+          null
+        }
       }
     }
   }
@@ -251,7 +298,13 @@ class MlbPlays(game: Game) extends Chrome {
       } else "play," + play.inning + "," + play.side + "," + play.id + "," + play.count + "," + play.pitches + "," + play.play + "\n"
     }
 
-    plays.toList.sortBy(i => (i._1.inning, i._1.side)).foldLeft(List.empty[String])({ (x, y) => x ++ y._2.map { eventString(_) } }).toList
+    plays.toList.sortBy(i => (i._1.inning, i._1.side)).foldLeft(List.empty[String])({ (x, y) => x ++ y._2.reverse.map { eventString(_) } }).toList
+  }
+
+  if (!(new File(fileName)).exists) {
+    val writer = new FileWriter(new File(fileName))
+    writer.write(pageSource)
+    writer.close
   }
 
   quit

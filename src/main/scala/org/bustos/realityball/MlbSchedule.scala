@@ -1,5 +1,6 @@
 package org.bustos.realityball
 
+import java.io._
 import org.scalatest._
 import selenium._
 import org.scalatest.time.{ Span, Seconds }
@@ -46,8 +47,18 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
   val amTimeExpression: Regex = "(.*):(.*)a".r
   val pmTimeExpression: Regex = "(.*):(.*)p".r
 
-  val host = GamedayURL
-  go to host + "schedule/sortable.jsp?c_id=" + team.mlbComId + "&year=" + year
+  val fileName = DataRoot + "gamedayPages/" + year + "/" + team.mnemonic + "_schedule.html"
+
+  if (new File(fileName).exists) {
+    val caps = DesiredCapabilities.chrome;
+    caps.setCapability("chrome.switches", Array("--disable-javascript"));
+
+    go to "file://" + fileName
+  } else {
+    val host = GamedayURL
+    go to host + "schedule/sortable.jsp?c_id=" + team.mlbComId + "&year=" + year
+  }
+
   Thread sleep 5
 
   val weather = new Weather(team.zipCode)
@@ -60,7 +71,7 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
 
   def scheduleFromRow(gameType: String, gameElement: RemoteWebElement): GamedaySchedule = {
     gameElement.getAttribute("textContent") match {
-      case awayExpression(where) => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", 0, "", 0, "", "")
+      case awayExpression(where) => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
       case homeGame: String => {
         val id = gameElement.getAttribute("id")
         val date = find(id + "c0").get.text match {
@@ -84,7 +95,7 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
         val losingPitcher = if (gameType == pastGame) find(id + "c5").get.text else ""
         val conditions = conditionsForDate(gameType, date + " " + time)
         GamedaySchedule(gameId, team.mnemonic, retrosheetIdFromName(visitingTeam), siteIdFromMnemonic(team.mnemonic), date, 0,
-          result, winningPitcher, losingPitcher, record,
+          result, winningPitcher, losingPitcher, record, "", "",
           time, conditions.temp, "", { if (conditions.winddir == "") 0 else conditions.winddir.toInt }, "", conditions.sky)
       }
     }
@@ -98,15 +109,15 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
             if (game.isDisplayed && game.getAttribute("id") != "") {
               game match {
                 case gameElement: RemoteWebElement => scheduleFromRow(gameType, gameElement)
-                case _                             => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", 0, "", 0, "", "")
+                case _                             => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
               }
-            } else GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", 0, "", 0, "", "")
+            } else GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
           }
         }
-        case _ => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", 0, "", 0, "", ""))
+        case _ => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", ""))
       }
     }
-    case x => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", 0, "", 0, "", ""))
+    case x => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", ""))
   }) filter { _.id != "" }
 
   def findDoubleHeaders(games: List[GamedaySchedule]): List[GamedaySchedule] = {
@@ -120,6 +131,12 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
 
   val pastGames = findDoubleHeaders(games(pastGame))
   val futureGames = findDoubleHeaders(games(futureGame))
+
+  if (!(new File(fileName)).exists) {
+    val writer = new FileWriter(new File(fileName))
+    writer.write(pageSource)
+    writer.close
+  }
 
   quit
 }

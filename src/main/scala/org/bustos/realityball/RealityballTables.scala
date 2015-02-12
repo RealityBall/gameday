@@ -27,17 +27,27 @@ object RealityballRecords {
                           var hits: Int, var walks: Int, var hitByPitch: Int, var strikeOuts: Int, var groundOuts: Int, var flyOuts: Int,
                           var earnedRuns: Int, var outs: Int, var shutout: Boolean, var noHitter: Boolean, var pitches: Int, var balls: Int)
 
-  case class Game(id: String, var homeTeam: String, var visitingTeam: String, var site: String, var date: String, var number: Int)
+  case class Game(id: String, var homeTeam: String, var visitingTeam: String, var site: String, var date: String, var number: Int, var startingHomePitcher: String, var startingVisitingPitcher: String)
   case class GameConditions(id: String, var startTime: String, var daynight: String, var usedh: Boolean,
                             var temp: Int, var winddir: String, var windspeed: Int, var fieldcond: String, var precip: String, var sky: String)
   case class GamedaySchedule(var id: String, homeTeam: String, visitingTeam: String, site: String, date: String, number: Int,
-                             result: String, winningPitcher: String, losingPitcher: String, record: String,
+                             result: String, winningPitcher: String, losingPitcher: String, record: String, var startingHomePitcher: String, var startingVisitingPitcher: String,
                              startTime: String, temp: Int, winddir: String, windspeed: Int, precip: String, sky: String)
   case class GameScoring(id: String, var umphome: String, var ump1b: String, var ump2b: String, var ump3b: String, var howscored: String,
                          var timeofgame: Int, var attendance: Int, var wp: String, var lp: String, var save: String)
   case class GameOdds(var id: String, var visitorML: Int, var homeML: Int, var overUnder: Double, var overUnderML: Int)
   case class FullGameInfo(schedule: GamedaySchedule, odds: GameOdds)
   case class InjuryReport(mlbId: String, reportTime: String, injuryReportDate: String, status: String, dueBack: String, injury: String)
+
+  case class FantasyPrediction(id: String, gameId: String,
+                               eFanduel: Option[Double], eDraftKings: Option[Double], eDraftster: Option[Double],
+                               fanduelBase: Option[Double], draftKingsBase: Option[Double], draftsterBase: Option[Double],
+                               fanduelPitcherAdj: Option[Double], draftKingsPitcherAdj: Option[Double], draftsterPitcherAdj: Option[Double],
+                               fanduelParkAdj: Option[Double], draftKingsParkAdj: Option[Double], draftsterParkAdj: Option[Double])
+  case class HitterFantasyMoving(date: String, id: String,
+                                 RHfanDuelMov: Option[Double], LHfanDuelMov: Option[Double], fanDuelMov: Option[Double],
+                                 RHdraftKingsMov: Option[Double], LHdraftKingsMov: Option[Double], draftKingslMov: Option[Double],
+                                 RHdraftsterMov: Option[Double], LHdraftsterMov: Option[Double], draftsterMov: Option[Double])
 
   case class BallparkDaily(var id: String, var date: String, var RHhits: Int, var RHtotalBases: Int, var RHatBat: Int, var LHhits: Int, var LHtotalBases: Int, var LHatBat: Int)
   case class Ballpark(id: String, name: String, aka: String, city: String, state: String, start: String, end: String, league: String, notes: String)
@@ -81,7 +91,7 @@ object RealityballJsonProtocol extends DefaultJsonProtocol {
   implicit val playerDataFormat = jsonFormat2(PlayerData)
   implicit val pitcherDataFormat = jsonFormat2(PitcherData)
   implicit val teamFormat = jsonFormat12(Team)
-  implicit val gamedayScheduleFormat = jsonFormat16(GamedaySchedule)
+  implicit val gamedayScheduleFormat = jsonFormat18(GamedaySchedule)
   implicit val gameOddsFormat = jsonFormat5(GameOdds)
   implicit val fullGameInfoFormat = jsonFormat2(FullGameInfo)
   implicit val injuryReportFormat = jsonFormat6(InjuryReport)
@@ -111,8 +121,10 @@ class GamesTable(tag: Tag) extends Table[Game](tag, "games") {
   def site = column[String]("site")
   def date = column[String]("date")
   def number = column[Int]("number")
+  def startingHomePitcher = column[String]("startingHomePitcher")
+  def startingVisitingPitcher = column[String]("startingVisitingPitcher")
 
-  def * = (id, homeTeam, visitingTeam, site, date, number) <> (Game.tupled, Game.unapply)
+  def * = (id, homeTeam, visitingTeam, site, date, number, startingHomePitcher, startingVisitingPitcher) <> (Game.tupled, Game.unapply)
 }
 
 class GameConditionsTable(tag: Tag) extends Table[GameConditions](tag, "gameConditions") {
@@ -141,6 +153,8 @@ class GamedayScheduleTable(tag: Tag) extends Table[GamedaySchedule](tag, "gameda
   def winningPitcher = column[String]("winningPitcher")
   def losingPitcher = column[String]("losingPitcher")
   def record = column[String]("record")
+  def startingHomePitcher = column[String]("startingHomePitcher")
+  def startingVisitingPitcher = column[String]("startingVisitingPitcher")
   def startTime = column[String]("startTime")
   def temp = column[Int]("temp")
   def winddir = column[String]("winddir")
@@ -148,7 +162,29 @@ class GamedayScheduleTable(tag: Tag) extends Table[GamedaySchedule](tag, "gameda
   def precip = column[String]("precip")
   def sky = column[String]("sky")
 
-  def * = (id, homeTeam, visitingTeam, site, date, number, result, winningPitcher, losingPitcher, record, startTime, temp, winddir, windspeed, precip, sky) <> (GamedaySchedule.tupled, GamedaySchedule.unapply)
+  def * = (id, homeTeam, visitingTeam, site, date, number, result, winningPitcher, losingPitcher, record, startingHomePitcher, startingVisitingPitcher, startTime, temp, winddir, windspeed, precip, sky) <> (GamedaySchedule.tupled, GamedaySchedule.unapply)
+}
+
+class FantasyLineup(tag: Tag) extends Table[FantasyPrediction](tag, "fantasyPrediction") {
+  def id = column[String]("id")
+  def gameId = column[String]("gameId")
+  def eFanduel = column[Option[Double]]("eFanduel")
+  def eDraftKings = column[Option[Double]]("eDraftKings")
+  def eDraftster = column[Option[Double]]("eDraftster")
+  def fanduelBase = column[Option[Double]]("fanduelBase")
+  def draftKingsBase = column[Option[Double]]("draftKingsBase")
+  def draftsterBase = column[Option[Double]]("draftsterBase")
+  def fanduelPitcherAdj = column[Option[Double]]("fanduePitcherAdj")
+  def draftKingsPitcherAdj = column[Option[Double]]("draftKingsPitcherAdj")
+  def draftsterPitcherAdj = column[Option[Double]]("draftserPitcherAdj")
+  def fanduelParkAdj = column[Option[Double]]("fanduelParkAdj")
+  def draftKingsParkAdj = column[Option[Double]]("draftKingsParkAdj")
+  def draftsterParkAdj = column[Option[Double]]("draftsterParkAdj")
+
+  def * = (id, gameId,
+    eFanduel, eDraftKings, eDraftster, fanduelBase, draftKingsBase, draftsterBase,
+    fanduelPitcherAdj, draftKingsPitcherAdj, draftsterPitcherAdj,
+    fanduelParkAdj, draftKingsParkAdj, draftsterParkAdj) <> (FantasyPrediction.tupled, FantasyPrediction.unapply)
 }
 
 class GameOddsTable(tag: Tag) extends Table[GameOdds](tag, "gameOdds") {
@@ -389,7 +425,7 @@ class HitterFantasyTable(tag: Tag) extends Table[(String, String, String, Int, O
     RHdraftster, LHdraftster, draftster)
 }
 
-class HitterFantasyMovingTable(tag: Tag) extends Table[(String, String, Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double])](tag, "hitterFantasyMovingStats") {
+class HitterFantasyMovingTable(tag: Tag) extends Table[HitterFantasyMoving](tag, "hitterFantasyMovingStats") {
 
   def date = column[String]("date"); def id = column[String]("id");
   def RHfanDuelMov = column[Option[Double]]("RHfanDuelMov")
@@ -407,7 +443,7 @@ class HitterFantasyMovingTable(tag: Tag) extends Table[(String, String, Option[D
   def * = (date, id,
     RHfanDuelMov, LHfanDuelMov, fanDuelMov,
     RHdraftKingsMov, LHdraftKingsMov, draftKingsMov,
-    RHdraftsterMov, LHdraftsterMov, draftsterMov)
+    RHdraftsterMov, LHdraftsterMov, draftsterMov) <> (HitterFantasyMoving.tupled, HitterFantasyMoving.unapply)
 }
 
 class HitterStatsVolatilityTable(tag: Tag) extends Table[(String, String, Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double], Option[Double])](tag, "hitterVolatilityStats") {

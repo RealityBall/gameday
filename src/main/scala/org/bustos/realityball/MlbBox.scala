@@ -1,5 +1,6 @@
 package org.bustos.realityball
 
+import java.io._
 import org.joda.time._
 import org.joda.time.format._
 import org.scalatest._
@@ -50,10 +51,17 @@ class MlbBox(val game: Game) extends Chrome {
 
   val gameId = game.homeTeam.toUpperCase + CcyymmddFormatter.print(date)
 
-  val host = GamedayURL
-  go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=box"
+  val fileName = DataRoot + "gamedayPages/" + date.getYear + "/" + game.visitingTeam + "_" + game.homeTeam + "_" + CcyymmddFormatter.print(date) + "_box.html"
 
-  var pitchCount = 0
+  if (new File(fileName).exists) {
+    val caps = DesiredCapabilities.chrome;
+    caps.setCapability("chrome.switches", Array("--disable-javascript"));
+
+    go to "file://" + fileName
+  } else {
+    val host = GamedayURL
+    go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=box"
+  }
 
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
@@ -208,6 +216,12 @@ class MlbBox(val game: Game) extends Chrome {
   val homePitcherLinescores = pitcherLinescores("home-team-pitcher")
   val awayStartingLineup = awayBatterLinescores.filter { _.starter }
   val homeStartingLineup = homeBatterLinescores.filter { _.starter }
+
+  if (!(new File(fileName)).exists) {
+    val writer = new FileWriter(new File(fileName))
+    writer.write(pageSource)
+    writer.close
+  }
 
   quit
 }

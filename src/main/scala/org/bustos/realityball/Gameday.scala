@@ -27,6 +27,7 @@ object Gameday extends App {
     }
     val eventFileName = DataRoot + "generatedData/" + eventFileDate.getYear + "/" + CcyymmddFormatter.print(eventFileDate) + ".eve"
     new FileWriter(new File(eventFileName))
+    //realityballData.games(eventFileDate).filter(_.visitingTeam == "COL").foreach { processGame(_) }
     realityballData.games(eventFileDate).foreach { processGame(_) }
   }
 
@@ -77,13 +78,18 @@ object Gameday extends App {
 
   //processInjuries
   //(2010 to 2014).foreach(processOdds(_))
-  //processSchedules("2014")
-  //processSchedules("2015")
+  processSchedules("2014")
+  processSchedules("2015")
 
-  processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
+  //processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
-  processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
+  //processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
   processGamedayDate(new DateTime(2014, 8, 24, 0, 0))
+  processGamedayDate(new DateTime(2014, 4, 14, 0, 0))
+  processGamedayDate(new DateTime(2014, 5, 14, 0, 0))
+  processGamedayDate(new DateTime(2014, 6, 14, 0, 0))
+  processGamedayDate(new DateTime(2014, 7, 14, 0, 0))
+  processGamedayDate(new DateTime(2014, 8, 14, 0, 0))
   logger.info("Completed Processing")
 }
