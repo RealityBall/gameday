@@ -76,8 +76,9 @@ object Gameday extends App {
     }
   }
 
-  //processInjuries
+  processInjuries
   //(2010 to 2014).foreach(processOdds(_))
+  (2015 to 2015).foreach(processOdds(_))
   processSchedules("2014")
   processSchedules("2015")
 

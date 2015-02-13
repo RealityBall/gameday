@@ -1,5 +1,6 @@
 package org.bustos.realityball
 
+import java.io._
 import org.scalatest._
 import selenium._
 import org.scalatest.time.{ Span, Seconds }
@@ -28,7 +29,20 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
   logger.info("********************************")
 
   val host = "http://www.covers.com/"
-  go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
+
+  val fileName = DataRoot + "coversPages/" + year + "/" + team.mnemonic + "_odds.html"
+
+  if (year < "2015") {
+    if (new File(fileName).exists) {
+      val caps = DesiredCapabilities.chrome;
+      caps.setCapability("chrome.switches", Array("--disable-javascript"));
+      go to "file://" + fileName
+    } else {
+      go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
+    }
+  } else {
+    go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
+  }
   Thread sleep 5
 
   val retrosheetIdFromCovers = {
@@ -67,9 +81,6 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
                     val odds = columnList(6).getAttribute("textContent").replaceAll("\n", "") match {
                       case oddsExpression(oup, overUnder, odds) => if (odds == "-") (overUnder.toDouble, 0) else (overUnder.toDouble, odds.toInt)
                       case _                                    => (0.0, 0)
-                    }
-                    if (date == "20130527" && (visitor == "ARI" || team.mnemonic == "ARI")) {
-                      println("")
                     }
                     if (visitor != "") {
                       val gameId = retrosheetIdFromCovers(visitor) + date
@@ -135,6 +146,12 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
       }
       case _ => throw new IllegalStateException("Could not find odds tables")
     }
+  }
+
+  if (!(new File(fileName)).exists) {
+    val writer = new FileWriter(new File(fileName))
+    writer.write(pageSource)
+    writer.close
   }
 
   quit
