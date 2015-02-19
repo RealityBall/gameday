@@ -53,10 +53,26 @@ object RealityballConfig {
   val GroundballPitcherStyleThreshold = (0.353 + 0.088 / 2.0)
 
   val MatchupNeutral = 0.592
-  val FlyballFlyball = 0.749
   val StrikeOutStrikeOut = 0.381
+  val FlyballFlyball = 0.749
   val GroundballFlyball = 0.707
   val GroundballStrikeOut = 0.496
-  val StrikeoutGroundball = 0.467
+  val StrikeOutGroundball = 0.467
+
+  // Valuation Model
+  /*
+  val Intercept = -0.9234
+  val BetaFanDuelBase = 0.4986
+  val BetaOddsAdj = 0.9994
+  val BetaMatchupAdj = 1.3730
+  *
+  */
+  val Intercept = -1.2611
+  val BetaFanDuelBase = 0.4866
+  val BetaPitcherAdj = 0.3135
+  val BetaParkAdj = 0.0257
+  val BetaBaTrendAdj = 0.0520
+  val BetaOddsAdj = 0.99475
+  val BetaMatchupAdj = 1.3640
 
 }

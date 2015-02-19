@@ -45,7 +45,7 @@ object RealityballRecords {
                                eFanduel: Option[Double], eDraftKings: Option[Double], eDraftster: Option[Double],
                                fanduelBase: Option[Double], draftKingsBase: Option[Double], draftsterBase: Option[Double],
                                fanduelVol: Option[Double], draftKingsVol: Option[Double], draftsterVol: Option[Double],
-                               pitcherAdj: Option[Double], parkAdj: Option[Double], baTrendAdj: Option[Double], oddsAdj: Option[Double], matchupAdj: Option[Double])
+                               pitcherAdj: Option[Double], parkAdj: Option[Double], baTrendAdj: Option[Double], oddsAdj: Option[Double], matchupAdj: Option[Double], revert: Option[Double])
   case class HitterStatsMoving(date: String, id: String, pitcherId: String, pitcherIndex: Int,
                                RHbattingAverageMov: Option[Double], LHbattingAverageMov: Option[Double], battingAverageMov: Option[Double],
                                RHonBasePercentageMov: Option[Double], LHonBasePercentageMov: Option[Double], onBasePercentageMov: Option[Double],
