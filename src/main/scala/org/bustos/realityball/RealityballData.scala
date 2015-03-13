@@ -436,9 +436,11 @@ class RealityballData {
     }
   }
 
-  def batterStyle(player: Player, game: Game): String = {
+  def batterStyle(player: Player, game: Game, pitcher: Player): String = {
     db.withSession { implicit session =>
-      val styleResults = hitterMovingStats.filter({ x => x.id === player.id && x.date === game.date }).map(_.style).list
+      val styleResults = hitterMovingStats.filter({ x => x.id === player.id && x.date === game.date }).map({ x =>
+        if (pitcher.throwsWith == "R") x.RHstyle else x.LHstyle
+      }).list
       if (!styleResults.isEmpty) styleResults.head
       else ""
     }
