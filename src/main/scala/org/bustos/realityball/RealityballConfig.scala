@@ -43,21 +43,28 @@ object RealityballConfig {
   val GroundBall = "GroundBall"
   val BaseOnBalls = "BaseOnBalls"
 
-  val StrikeOutBatterStyleThreshold = (0.206 + 0.062)
-  val FlyballBatterStyleThreshold = (0.381 + 0.057)
-  val GroundballBatterStyleThreshold = (0.328 + 0.070)
-  val BaseOnBallsBatterStyleThreshold = (0.085 + 0.031)
-
   val StrikeOutPitcherStyleThreshold = (0.301 + 0.076 / 2.0)
   val FlyballPitcherStyleThreshold = (0.339 + 0.073 / 2.0)
   val GroundballPitcherStyleThreshold = (0.353 + 0.088 / 2.0)
 
-  val MatchupNeutral = 0.592
-  val StrikeOutStrikeOut = 0.381
-  val FlyballFlyball = 0.749
-  val GroundballFlyball = 0.707
-  val GroundballStrikeOut = 0.496
-  val StrikeOutGroundball = 0.467
+  // Matchups (Pitcher/Batter)
+  val MatchupBase = 0.5142
+  val MatchupNeutralNeutral = 0.5024
+  val MatchupStrikeOutNeutral = 0.4439
+  val MatchupFlyBallNeutral = 0.5678
+  val MatchupGroundballNeutral = 0.5519
+  val MatchupNeutralStrikeOut = 0.4587
+  val MatchupStrikeOutStrikeOut = 0.3812
+  val MatchupFlyballStrikeOut = 0.5257
+  val MatchupGroundballStrikeOut = 0.4928
+  val MatchupNeutralFlyball = 0.5325
+  val MatchupStrikeOutFlyball = 0.4595
+  val MatchupFlyballFlyball = 0.6132
+  val MatchupGroundballFlyball = 0.5697
+  val MatchupNeutralGroundball = 0.5065
+  val MatchupStrikeOutGroundball = 0.4071
+  val MatchupFlyballGroundball = 0.5524
+  val MatchupGroundballGroundball = 0.5144
 
   // Valuation Model
   /*
