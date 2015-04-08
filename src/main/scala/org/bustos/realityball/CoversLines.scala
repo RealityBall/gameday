@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import RealityballRecords._
 import RealityballConfig._
 
-class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameOdds]]) extends Chrome {
+class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameOdds]], past: Boolean) extends Chrome {
 
   implicitlyWait(Span(20, Seconds))
 
@@ -22,6 +22,7 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
   val visitorExpression: Regex = "@(.*)".r
   val moneyLineExpression: Regex = "([LW])(.*)".r
   val oddsExpression: Regex = ".*([OUP]) (.*) (.*)".r
+  val futureOddsML: Regex = "(.*)/(.*)([ou])(.*)".r // e.g. 115/7o -112
 
   val logger = LoggerFactory.getLogger(getClass)
   logger.info("********************************")
@@ -41,13 +42,19 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
       go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
     }
   } else {
-    go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
+    if (past) go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
+    else go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
+
   }
   Thread sleep 5
 
   val retrosheetIdFromCovers = {
     val realityballData = new RealityballData
-    val mappings = realityballData.teams(year).map(x => (x.coversComName -> x.mnemonic)).toMap
+    val mappings = {
+      val lYear = if (year == "2015") "2014" else year
+      if (past) realityballData.teams(lYear).map(x => (x.coversComName -> x.mnemonic)).toMap
+      else realityballData.teams(lYear).map(x => (cleanString(x.coversComFullName) -> x.mnemonic)).toMap
+    }
     if (year == "2010" || year == "2011") mappings + ("MIA" -> "FLO")
     else mappings
   }
@@ -74,54 +81,71 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
                       case visitorExpression(team) => team
                       case _                       => ""
                     }
-                    val moneyLine = cleanString(columnList(5).getAttribute("textContent")) match {
-                      case moneyLineExpression(wl, lineValue) => lineValue.toInt
-                      case _                                  => 0
-                    }
-                    val odds = columnList(6).getAttribute("textContent").replaceAll("\n", "") match {
-                      case oddsExpression(oup, overUnder, odds) => if (odds == "-") (overUnder.toDouble, 0) else (overUnder.toDouble, odds.toInt)
-                      case _                                    => (0.0, 0)
-                    }
+                    val moneyLine =
+                      if (past) {
+                        cleanString(columnList(5).getAttribute("textContent")) match {
+                          case moneyLineExpression(wl, lineValue) => lineValue.toInt
+                          case _ => 0
+                        }
+                      } else {
+                        cleanString(columnList(3).getAttribute("textContent")) match {
+                          case futureOddsML(ml, overUnder, oup, overUnderML) => ml.toInt
+                          case _ => 0
+                        }
+                      }
+
+                    val odds =
+                      if (past) {
+                        columnList(6).getAttribute("textContent").replaceAll("\n", "") match {
+                          case oddsExpression(oup, overUnder, odds) => if (odds == "-") (overUnder.toDouble, 0) else (overUnder.toDouble, odds.toInt)
+                          case _                                    => (0.0, 0)
+                        }
+                      } else {
+                        cleanString(columnList(3).getAttribute("textContent")) match {
+                          case futureOddsML(ml, overUnder, oup, overUnderML) => if (overUnderML == "-") (overUnder.toDouble, 0) else (overUnder.toDouble, overUnderML.toInt)
+                          case _ => (0.0, 0)
+                        }
+                      }
                     if (visitor != "") {
                       val gameId = retrosheetIdFromCovers(visitor) + date
-                      if (gameMap.contains(gameId)) {
-                        if (gameMap(gameId).size == 2 && gameMap(gameId)(1).visitorML == 0) {
+                      if (gameMap.contains(gameId + past)) {
+                        if (gameMap(gameId + past).size == 2 && gameMap(gameId + past)(1).visitorML == 0) {
                           // Update `visitorML' for second game of a double header
-                          gameMap(gameId)(1).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
-                        } else if (gameMap(gameId).size == 2 && gameMap(gameId)(0).visitorML == 0) {
+                          gameMap(gameId + past)(1).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId + past).size == 2 && gameMap(gameId + past)(0).visitorML == 0) {
                           // Update `visitorML' for first game of a double header
-                          gameMap(gameId)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
-                        } else if (gameMap(gameId)(0).visitorML == 0) {
+                          gameMap(gameId + past)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId + past)(0).visitorML == 0) {
                           // Update `visitorML'
-                          gameMap(gameId)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                          gameMap(gameId + past)(0).visitorML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else {
                           // Probable Double Header
-                          val secondOfDoubleHeader = gameMap(gameId)(0)
-                          secondOfDoubleHeader.id = gameId + "2"
-                          val firstOfDoubleHeader = GameOdds(gameId + "1", moneyLine, 0, odds._1, odds._2)
-                          gameOddsFromRows(gameMap + (gameId -> List(firstOfDoubleHeader, secondOfDoubleHeader)), gameList.tail)
+                          val secondOfDoubleHeader = gameMap(gameId + past)(0)
+                          secondOfDoubleHeader.id = gameId + past + "2"
+                          val firstOfDoubleHeader = GameOdds(gameId + past + "1", moneyLine, 0, odds._1, odds._2)
+                          gameOddsFromRows(gameMap + (gameId + past -> List(firstOfDoubleHeader, secondOfDoubleHeader)), gameList.tail)
                         }
-                      } else gameOddsFromRows(gameMap + (gameId -> List(GameOdds(gameId + "0", moneyLine, 0, odds._1, odds._2))), gameList.tail)
+                      } else gameOddsFromRows(gameMap + (gameId + past -> List(GameOdds(gameId + "0", moneyLine, 0, odds._1, odds._2))), gameList.tail)
                     } else {
                       val gameId = team.mnemonic + date
-                      if (gameMap.contains(gameId)) {
-                        if (gameMap(gameId).size == 2 && gameMap(gameId)(1).homeML == 0) {
+                      if (gameMap.contains(gameId + past)) {
+                        if (gameMap(gameId + past).size == 2 && gameMap(gameId + past)(1).homeML == 0) {
                           // Update `homerML' for second game of a double header
-                          gameMap(gameId)(1).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
-                        } else if (gameMap(gameId).size == 2 && gameMap(gameId)(0).homeML == 0) {
+                          gameMap(gameId + past)(1).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId + past).size == 2 && gameMap(gameId + past)(0).homeML == 0) {
                           // Update `homeML' for first game of a double header
-                          gameMap(gameId)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
-                        } else if (gameMap(gameId)(0).homeML == 0) {
+                          gameMap(gameId + past)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                        } else if (gameMap(gameId + past)(0).homeML == 0) {
                           // Update `homeML'
-                          gameMap(gameId)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
+                          gameMap(gameId + past)(0).homeML = moneyLine; gameOddsFromRows(gameMap, gameList.tail)
                         } else {
                           // Probable Double Header
-                          val secondOfDoubleHeader = gameMap(gameId)(0)
-                          secondOfDoubleHeader.id = gameId + "2"
-                          val firstOfDoubleHeader = GameOdds(gameId + "1", 0, moneyLine, odds._1, odds._2)
-                          gameOddsFromRows(gameMap + (gameId -> List(firstOfDoubleHeader, secondOfDoubleHeader)), gameList.tail)
+                          val secondOfDoubleHeader = gameMap(gameId + past)(0)
+                          secondOfDoubleHeader.id = gameId + past + "2"
+                          val firstOfDoubleHeader = GameOdds(gameId + past + "1", 0, moneyLine, odds._1, odds._2)
+                          gameOddsFromRows(gameMap + (gameId + past -> List(firstOfDoubleHeader, secondOfDoubleHeader)), gameList.tail)
                         }
-                      } else gameOddsFromRows(gameMap + (gameId -> List(GameOdds(gameId + "0", 0, moneyLine, odds._1, odds._2))), gameList.tail)
+                      } else gameOddsFromRows(gameMap + (gameId + past -> List(GameOdds(gameId + "0", 0, moneyLine, odds._1, odds._2))), gameList.tail)
                     }
                   }
                 }
@@ -148,10 +172,12 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
     }
   }
 
-  if (!(new File(fileName)).exists) {
-    val writer = new FileWriter(new File(fileName))
-    writer.write(pageSource)
-    writer.close
+  if (year < "2015") {
+    if (!(new File(fileName)).exists) {
+      val writer = new FileWriter(new File(fileName))
+      writer.write(pageSource)
+      writer.close
+    }
   }
 
   quit

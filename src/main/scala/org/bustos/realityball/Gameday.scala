@@ -51,7 +51,8 @@ object Gameday extends App {
     db.withSession { implicit session =>
       gameOddsTable.filter({ x => x.id like ("%" + year + "%") }).delete
       realityballData.teams(year.toString).foreach(team => {
-        gameOdds = (new CoversLines(team, year.toString, gameOdds)).games
+        gameOdds = (new CoversLines(team, year.toString, gameOdds, true)).games
+        gameOdds = (new CoversLines(team, year.toString, gameOdds, false)).games
       })
       gameOdds.foreach({ case (k, v) => v.foreach({ gameOddsTable += _ }) })
     }
@@ -76,21 +77,17 @@ object Gameday extends App {
     }
   }
 
-  processInjuries
+  //processInjuries
   //(2010 to 2014).foreach(processOdds(_))
   (2015 to 2015).foreach(processOdds(_))
-  processSchedules("2014")
+  //processSchedules("2014")
   processSchedules("2015")
 
   //processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
-  processGamedayDate(new DateTime(2014, 8, 24, 0, 0))
-  processGamedayDate(new DateTime(2014, 4, 14, 0, 0))
-  processGamedayDate(new DateTime(2014, 5, 14, 0, 0))
-  processGamedayDate(new DateTime(2014, 6, 14, 0, 0))
-  processGamedayDate(new DateTime(2014, 7, 14, 0, 0))
-  processGamedayDate(new DateTime(2014, 8, 14, 0, 0))
+  processGamedayDate(new DateTime(2015, 4, 5, 0, 0))
+  processGamedayDate(new DateTime(2015, 4, 6, 0, 0))
   logger.info("Completed Processing")
 }
