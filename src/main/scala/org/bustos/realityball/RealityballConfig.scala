@@ -10,6 +10,7 @@ object RealityballConfig {
 
   val GamedayURL = "http://mlb.com/"
   val MlbURL = "http://mlb.mlb.com/"
+  val FantasyAlarmURL = "http://www.fantasyalarm.com/"
   val DataRoot = "/Users/mauricio/Google Drive/Projects/fantasySports/data/"
 
   val WUNDERGROUND_APIURL = "http://api.wunderground.com/api/"

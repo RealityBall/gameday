@@ -56,7 +56,6 @@ class MlbBox(val game: Game) extends Chrome {
   if (new File(fileName).exists) {
     val caps = DesiredCapabilities.chrome;
     caps.setCapability("chrome.switches", Array("--disable-javascript"));
-
     go to "file://" + fileName
   } else {
     val host = GamedayURL
@@ -64,9 +63,10 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
+    val localYear = if (YearFormatter.print(date) == "2015") "2014" else YearFormatter.print(date)
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
     url match {
-      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, YearFormatter.print(date))
+      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, localYear)
       case _                                 => throw new IllegalStateException("No player found")
     }
   }
@@ -107,7 +107,7 @@ class MlbBox(val game: Game) extends Chrome {
           }
         }
       }
-      case _ => throw new IllegalStateException("No linescores found")
+      case _ => List.empty[BatterLinescore]
     }
   }
   def pitcherLinescore(result: List[PitcherLinescore], row: WebElement): List[PitcherLinescore] = {
@@ -125,7 +125,7 @@ class MlbBox(val game: Game) extends Chrome {
             details(5).getAttribute("textContent").toInt,
             details(6).getAttribute("textContent").toInt,
             details(7).getAttribute("textContent").toInt,
-            details(8).getAttribute("textContent").toDouble)
+            if (!details(8).getAttribute("textContent").contains("-")) details(8).getAttribute("textContent").toDouble else 0.0)
           logger.info(linescore.toString)
           linescore :: result
         }
@@ -144,7 +144,7 @@ class MlbBox(val game: Game) extends Chrome {
           }
         }
       }
-      case _ => throw new IllegalStateException("No linescores found")
+      case _ => List.empty[PitcherLinescore]
     }
   }
 
@@ -178,7 +178,7 @@ class MlbBox(val game: Game) extends Chrome {
           }
         }
       }
-      case _ => throw new IllegalStateException("No game-info-container found")
+      case _ => GameInfo("", "", "", "", "", "", "", "", "", "", "", "")
     }
   }
 

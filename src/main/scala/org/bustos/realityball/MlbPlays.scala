@@ -107,7 +107,7 @@ class MlbPlays(game: Game) extends Chrome {
 
   def atBatAdvancements(atBatResult: RemoteWebElement, batter: Player, team: String): String = {
     runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.
-      replace("\n", "").replace(" jr.", "").
+      replace("\n", "").replace("fielder steven souza jr.", "fielder steven souza.").replace(" jr.", "").
       replace(" a.  j.", " a").replace(" c.  j.", " c").replace(" b.  j.", " b").
       replace(" l.  j.", " l").replace(" t.  j.", " t").replace(" j.  p.", " j").
       replace(" j.  d.", " j").

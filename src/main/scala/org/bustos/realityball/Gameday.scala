@@ -25,8 +25,8 @@ object Gameday extends App {
       val retrosheet = new RetrosheetFromGameday(box, plays)
       logger.info("")
     }
-    val eventFileName = DataRoot + "generatedData/" + eventFileDate.getYear + "/" + CcyymmddFormatter.print(eventFileDate) + ".eve"
-    new FileWriter(new File(eventFileName))
+    //val eventFileName = DataRoot + "generatedData/" + eventFileDate.getYear + "/" + CcyymmddFormatter.print(eventFileDate) + ".eve"
+    //new FileWriter(new File(eventFileName))
     //realityballData.games(eventFileDate).filter(_.visitingTeam == "COL").foreach { processGame(_) }
     realityballData.games(eventFileDate).foreach { processGame(_) }
   }
@@ -65,7 +65,14 @@ object Gameday extends App {
     }
   }
 
+  def processLineups(date: DateTime) = {
+    var lineups = new FantasyAlarmLineups(date)
+  }
+
   db.withSession { implicit session =>
+    if (MTable.getTables("lineups").list.isEmpty) {
+      lineupsTable.ddl.create
+    }
     if (MTable.getTables("gamedaySchedule").list.isEmpty) {
       gamedayScheduleTable.ddl.create
     }
@@ -79,15 +86,17 @@ object Gameday extends App {
 
   //processInjuries
   //(2010 to 2014).foreach(processOdds(_))
-  (2015 to 2015).foreach(processOdds(_))
+  //(2015 to 2015).foreach(processOdds(_))
   //processSchedules("2014")
-  processSchedules("2015")
+  //processSchedules("2015")
 
+  processLineups(new DateTime(2015, 4, 6, 0, 0))
   //processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
-  processGamedayDate(new DateTime(2015, 4, 5, 0, 0))
+  //processGamedayDate(new DateTime(2015, 4, 5, 0, 0))
   processGamedayDate(new DateTime(2015, 4, 6, 0, 0))
+  processGamedayDate(new DateTime(2015, 4, 7, 0, 0))
   logger.info("Completed Processing")
 }

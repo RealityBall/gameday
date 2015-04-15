@@ -34,6 +34,7 @@ class MlbRunnerPositions {
   }
 
   def playerFromString(name: String, team: String, year: String): Player = {
+    val localYear = if (year == "2015") "2014" else year
     val trimmedName = name.replace(" Jr.", "").trim
     trimmedName match {
       case nameExpression(aj, cj, bj, lj, tj, jp, jc, jd, jr, jj, firstName, lastName) => {
@@ -51,22 +52,23 @@ class MlbRunnerPositions {
           else firstName
         }
         try {
-          realityballData.playerFromName(fName(0).toString, lastName.trim, year, team)
+          realityballData.playerFromName(fName(0).toString, lastName.trim, localYear, team)
         } catch {
           case e: Exception => {
             logger.warn("Initial attempt to find player failed: " + trimmedName + " (" + team + ")")
             // These are one off bugs from mlb.com where they confuse the first name on an advancement.
-            if (trimmedName == "j   ellis") realityballData.playerFromName("A", "Ellis", year, team)
-            else if (trimmedName == "j   pollock") realityballData.playerFromName("A", "Pollock", year, team)
-            else if (trimmedName == "jackie bradley    brock holt") realityballData.playerFromName("B", "Holt", year, team)
-            else realityballData.playerFromName(fName.trim, lastName.trim, year, team)
+            if (trimmedName == "j   ellis") realityballData.playerFromName("A", "Ellis", localYear, team)
+            else if (trimmedName == "j   pollock") realityballData.playerFromName("A", "Pollock", localYear, team)
+            else if (trimmedName == "jackie bradley    brock holt") realityballData.playerFromName("B", "Holt", localYear, team)
+            else if (trimmedName == "David Carpenter" && team == "NYA" && year == "2015") realityballData.playerFromRetrosheetId("carpd001", localYear)  // Traded from ATL to NYA
+            else realityballData.playerFromName(fName.trim, lastName.trim, localYear, team)
           }
         }
       }
       case _ => {
         // These are one off bugs from mlb.com where they omit the first name on an advancement.
-        if (name == "ellis") realityballData.playerFromName("A", "Ellis", year, team)
-        else if (name == "hardy") realityballData.playerFromName("J", "Hardy", year, team)
+        if (name == "ellis") realityballData.playerFromName("A", "Ellis", localYear, team)
+        else if (name == "hardy") realityballData.playerFromName("J", "Hardy", localYear, team)
         else {
           logger.warn("Could not decode name: " + trimmedName)
           null
