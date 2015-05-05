@@ -98,7 +98,7 @@ class FantasyAlarmLineups(val date: DateTime) extends Chrome {
           } else EmptyLineupEntry
         }
         case _ => EmptyLineupEntry
-      }).toList)
+      }).toList.filter(_.mlbId != ""))
     }).toMap
   }
 

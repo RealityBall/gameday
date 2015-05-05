@@ -22,7 +22,7 @@ class MlbInjuries extends Chrome {
 
   val logger = LoggerFactory.getLogger(getClass)
   logger.info("********************************")
-  logger.info("*** Retrieving injury report")
+  logger.info("*** Retrieving injury report ***")
   logger.info("********************************")
 
   val realityballData = new RealityballData

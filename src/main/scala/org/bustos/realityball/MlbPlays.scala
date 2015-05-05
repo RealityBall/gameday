@@ -41,9 +41,9 @@ class MlbPlays(game: Game) extends Chrome {
   val pinchRunnerExpression = """.*Pinch-runner (.*) replaces (.*)\..*""".r
   val wildPitch = """.*With (.*) batting, wild pitch.*""".r
 
-  logger.info("********************************")
-  logger.info("*** Retrieving play results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date))
-  logger.info("********************************")
+  logger.info("***********************************************************")
+  logger.info("*** Retrieving play results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date) + " ***")
+  logger.info("***********************************************************")
 
   val fileName = DataRoot + "gamedayPages/" + date.getYear + "/" + game.visitingTeam + "_" + game.homeTeam + "_" + CcyymmddFormatter.print(date) + "_play_by_play.html"
 
@@ -107,7 +107,13 @@ class MlbPlays(game: Game) extends Chrome {
 
   def atBatAdvancements(atBatResult: RemoteWebElement, batter: Player, team: String): String = {
     runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.
-      replace("\n", "").replace("fielder steven souza jr.", "fielder steven souza.").replace(" jr.", "").
+      replace("\n", "").replace("fielder steven souza jr.", "fielder steven souza.").
+      replace(".  j.  d.   martinez", ". j martinez").replace(".    j.  d.   martinez", ". j martinez").
+      replace(".   c.  j.   cron ", ". c cron").
+      replace(".  j.   cron", ". c cron").replace(".    j.  t.   realmuto", ". j realmuto").
+      replace(".   j.  t.   realmuto", ". j realmuto").replace(".  t.   realmuto", ". j realmuto").
+      replace(".   j.  d.   martinez", ". j martinez").
+      replace(".  d.   martinez", ". j martinez").replace(" jr.", "").
       replace(" a.  j.", " a").replace(" c.  j.", " c").replace(" b.  j.", " b").
       replace(" l.  j.", " l").replace(" t.  j.", " t").replace(" j.  p.", " j").
       replace(" j.  d.", " j").
@@ -211,9 +217,6 @@ class MlbPlays(game: Game) extends Chrome {
     } else {
       // Play actions
       val playDescription = atBat.getAttribute("textContent").replaceAll("\n", "")
-      if (playDescription.contains("Wild")) {
-        println(playDescription)
-      }
       playDescription match {
         case pitcherChangeExpression(name) => {
           val player = runners.playerFromString(name, pitcherTeam, YearFormatter.print(date))

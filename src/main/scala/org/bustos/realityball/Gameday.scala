@@ -20,14 +20,12 @@ object Gameday extends App {
 
   def processGamedayDate(eventFileDate: DateTime) = {
     def processGame(game: Game) = {
-      val plays = new MlbPlays(game)
       val box = new MlbBox(game)
+      val plays = new MlbPlays(game)
       val retrosheet = new RetrosheetFromGameday(box, plays)
       logger.info("")
     }
-    //val eventFileName = DataRoot + "generatedData/" + eventFileDate.getYear + "/" + CcyymmddFormatter.print(eventFileDate) + ".eve"
-    //new FileWriter(new File(eventFileName))
-    //realityballData.games(eventFileDate).filter(_.visitingTeam == "COL").foreach { processGame(_) }
+    new RetrosheetClean(eventFileDate)
     realityballData.games(eventFileDate).foreach { processGame(_) }
   }
 
@@ -58,15 +56,20 @@ object Gameday extends App {
     }
   }
 
-  def processInjuries = {
+  def processInjuries(date: DateTime) = {
     var injuries = (new MlbInjuries).injuries
     db.withSession { implicit session =>
+      injuryReportTable.filter({ x => x.injuryReportDate === CcyymmddFormatter.print(date) }).delete
       injuries.foreach({ injuryReportTable += _ })
     }
   }
 
   def processLineups(date: DateTime) = {
     var lineups = new FantasyAlarmLineups(date)
+    db.withSession { implicit session =>
+      lineupsTable.filter({ x => x.date === CcyymmddFormatter.print(date) }).delete
+      lineups.lineups.foreach({ case (k, v) => v.foreach(lineupsTable += _) })
+    }
   }
 
   db.withSession { implicit session =>
@@ -84,19 +87,20 @@ object Gameday extends App {
     }
   }
 
-  //processInjuries
+  processInjuries(DateTime.now)
+  //processOdds(2015)
+  //processLineups(new DateTime(2015, 4, 6, 0, 0))
+  val startDate = new DateTime(2015, 4, 8, 0, 0)
+  (for (f <- 0 to 20) yield startDate.plusDays(f)).foreach(processGamedayDate(_))
+
   //(2010 to 2014).foreach(processOdds(_))
-  //(2015 to 2015).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
 
-  processLineups(new DateTime(2015, 4, 6, 0, 0))
   //processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
   //processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
   //processGamedayDate(new DateTime(2015, 4, 5, 0, 0))
-  processGamedayDate(new DateTime(2015, 4, 6, 0, 0))
-  processGamedayDate(new DateTime(2015, 4, 7, 0, 0))
   logger.info("Completed Processing")
 }

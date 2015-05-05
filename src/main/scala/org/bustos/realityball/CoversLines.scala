@@ -25,9 +25,11 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
   val futureOddsML: Regex = "(.*)/(.*)([ou])(.*)".r // e.g. 115/7o -112
 
   val logger = LoggerFactory.getLogger(getClass)
-  logger.info("********************************")
-  logger.info("*** Retrieving odds for " + team.mlbComName + " for year " + year)
-  logger.info("********************************")
+  val pastFuture = if (past) " (past)   " else " (future) "
+
+  logger.info("*********************************************************")
+  logger.info("*** Retrieving odds for " + team.mlbComName + " for year " + year + pastFuture + "***")
+  logger.info("*********************************************************")
 
   val host = "http://www.covers.com/"
 

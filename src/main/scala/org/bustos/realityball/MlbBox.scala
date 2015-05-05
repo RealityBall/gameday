@@ -45,9 +45,9 @@ class MlbBox(val game: Game) extends Chrome {
   val mlbHomeTeam = realityballData.mlbComIdFromRetrosheet(game.homeTeam)
   val mlbVisitingTeam = realityballData.mlbComIdFromRetrosheet(game.visitingTeam)
 
-  logger.info("********************************")
-  logger.info("*** Retrieving box results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date))
-  logger.info("********************************")
+  logger.info("**********************************************************")
+  logger.info("*** Retrieving box results for " + game.visitingTeam + " @ " + game.homeTeam + " on " + CcyymmddDelimFormatter.print(date) + " ***")
+  logger.info("**********************************************************")
 
   val gameId = game.homeTeam.toUpperCase + CcyymmddFormatter.print(date)
 
@@ -63,10 +63,9 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
-    val localYear = if (YearFormatter.print(date) == "2015") "2014" else YearFormatter.print(date)
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
     url match {
-      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, localYear)
+      case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, YearFormatter.print(date))
       case _                                 => throw new IllegalStateException("No player found")
     }
   }
@@ -98,7 +97,7 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   def batterLinescores(linescoreType: String): List[BatterLinescore] = {
-    find(linescoreType) match {
+    (find(linescoreType) match {
       case Some(x) => x.underlying match {
         case linescoresElement: RemoteWebElement => {
           linescoresElement.findElementsByTagName("tr") match {
@@ -108,7 +107,7 @@ class MlbBox(val game: Game) extends Chrome {
         }
       }
       case _ => List.empty[BatterLinescore]
-    }
+    }) reverse
   }
   def pitcherLinescore(result: List[PitcherLinescore], row: WebElement): List[PitcherLinescore] = {
     if (!row.getAttribute("textContent").contains("ERA") && !row.getAttribute("textContent").contains("Totals")) {
@@ -135,17 +134,17 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   def pitcherLinescores(linescoreType: String): List[PitcherLinescore] = {
-    find(linescoreType) match {
+    (find(linescoreType) match {
       case Some(x) => x.underlying match {
         case linescoresElement: RemoteWebElement => {
           linescoresElement.findElementsByTagName("tr") match {
             case pitchers: java.util.List[WebElement] => pitchers.foldLeft(List.empty[PitcherLinescore])((x, y) => pitcherLinescore(x, y))
-            case _                                    => throw new IllegalStateException("No linescore entries found")
+            case _ => throw new IllegalStateException("No linescore entries found")
           }
         }
       }
       case _ => List.empty[PitcherLinescore]
-    }
+    }) reverse
   }
 
   val gameInfo: GameInfo = {
