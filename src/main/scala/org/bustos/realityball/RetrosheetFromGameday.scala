@@ -3,7 +3,7 @@ package org.bustos.realityball
 import java.io._
 import org.joda.time.DateTime
 import org.slf4j.LoggerFactory
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballConfig._
 
 object RetrosheetFromGameday {
   val Info = "info,"

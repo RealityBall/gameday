@@ -13,8 +13,9 @@ import htmlunit._
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
 import org.slf4j.LoggerFactory
-import RealityballRecords._
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballConfig._
+import org.bustos.realityball.common.RealityballData
 
 object MlbPlays {
 
@@ -48,9 +49,8 @@ class MlbPlays(game: Game) extends Chrome {
   val fileName = DataRoot + "gamedayPages/" + date.getYear + "/" + game.visitingTeam + "_" + game.homeTeam + "_" + CcyymmddFormatter.print(date) + "_play_by_play.html"
 
   if (new File(fileName).exists) {
-    val caps = DesiredCapabilities.chrome;
-    caps.setCapability("chrome.switches", Array("--disable-javascript"));
-
+    val caps = DesiredCapabilities.chrome
+    caps.setCapability("chrome.switches", Array("--disable-javascript"))
     go to "file://" + fileName
   } else {
     val host = GamedayURL
@@ -86,7 +86,7 @@ class MlbPlays(game: Game) extends Chrome {
       else if (pitchDescription == "missed bunt") runningPitches + "MB"
       else if (pitchDescription.contains("in play")) runningPitches + "X"
       else {
-        logger.warn("UNKOWN PITCH " + pitchDescription)
+        logger.warn("UNKNOWN PITCH " + pitchDescription)
         runningPitches
       }
     } else runningPitches
@@ -106,20 +106,30 @@ class MlbPlays(game: Game) extends Chrome {
   }
 
   def atBatAdvancements(atBatResult: RemoteWebElement, batter: Player, team: String): String = {
-    runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.
-      replace("\n", "").replace("fielder steven souza jr.", "fielder steven souza.").
-      replace(".  j.  d.   martinez", ". j martinez").replace(".    j.  d.   martinez", ". j martinez").
-      replace(".   c.  j.   cron ", ". c cron").
-      replace(".  j.   cron", ". c cron").replace(".    j.  t.   realmuto", ". j realmuto").
-      replace(".   j.  t.   realmuto", ". j realmuto").replace(".  t.   realmuto", ". j realmuto").
-      replace(".   j.  d.   martinez", ". j martinez").
-      replace(".  d.   martinez", ". j martinez").replace(" jr.", "").
-      replace(" a.  j.", " a").replace(" c.  j.", " c").replace(" b.  j.", " b").
-      replace(" l.  j.", " l").replace(" t.  j.", " t").replace(" j.  p.", " j").
-      replace(" j.  d.", " j").
-      replace(" juan carlos", " juan").replace(" john ryan", " john").
-      replace(" j.", " j").replace(" b.", " b").replace(" a.", " a").replace(" c.", " c"),
-      batter, team, YearFormatter.print(date))
+      runners.advancementString(atBatResult.getAttribute("textContent").toLowerCase.
+        replace("\n", "").
+        replace("fielder steven souza jr.", "fielder steven souza.").
+        replace(".   c.  j.   cron ", ". c cron").
+        replace(".    c.  j.   cron", ".  c cron").
+        replace(".  j.   cron", ". c cron").
+        replace(".    j.  t.   realmuto", ". j realmuto").
+        replace(".   j.  t.   realmuto", ". j realmuto").
+        replace(".  t.   realmuto", ". j realmuto").
+        replace("scores.   realmuto", "scores.  j realmuto").
+        replace(".   j.  d.   martinez", ". j martinez").
+        replace(".  j.  d.   martinez", ". j martinez").
+        replace(".    j.  d.   martinez", ". j martinez").
+        replace(".  d.   martinez", ". j martinez").
+        replace("scores.   pierzynski", "scores. a pierzynski").
+        replace("kemp.   l.   hoes", "kemp.  l hoes").
+        replace(" juan carlos", " juan").replace(" john ryan", " john").
+        replace(" jr.", "").
+        replace (".    j.  d.    yoenis cespedes", ".  j martinez scores.  yoenis cespedes").
+        replace(" a.  j.", " a").replace(" c.  j.", " c").replace(" b.  j.", " b").
+        replace(" l.  j.", " l").replace(" t.  j.", " t").replace(" j.  p.", " j").
+        replace(" j.  d.", " j").replace("ramirez.   martinez scores.", "ramirez.  j martinez scores.").
+        replace(" j.", " j").replace(" b.", " b").replace(" a.", " a").replace(" c.", " c"),
+        batter, team, YearFormatter.print(date))
   }
 
   def atBatPlayString(atBatResult: RemoteWebElement): String = {
@@ -153,10 +163,11 @@ class MlbPlays(game: Game) extends Chrome {
     else if (playDescription.contains("caught stealing 2nd base")) "CS2"
     else if (playDescription.contains("caught stealing 3rd base")) "CS3"
     else if (playDescription.contains("caught stealing home")) "CSH"
+    else if (playDescription.contains("wild pitch") && playDescription.contains("out at home")) "CSH"
     else if (playDescription.contains("picks off")) "/PO"
     else {
-      logger.warn("UNKOWN PLAY " + playDescription)
-      ""
+      logger.warn("UNKNOWN PLAY " + playDescription)
+      "NP"
     }
   }
 
@@ -232,8 +243,16 @@ class MlbPlays(game: Game) extends Chrome {
         }
         case wildPitch(name) => {
           val player = runners.playerFromString(name, batterTeam, YearFormatter.print(date))
-          val advancements = runners.advancementString(playDescription.toLowerCase.replace(" jr.", ""), player, batterTeam, YearFormatter.print(date))
-          Play(inningAndSide.inning, inningAndSide.side, player.id, "00", "\"" + player.firstName + " " + player.lastName + "\"", "WP" + advancements)
+          val advancements = runners.advancementString(
+            playDescription.toLowerCase
+              .replace(" jr.", "")
+              .replace(", j.  d.   martinez", ". j martinez")
+              .replace(".    j.  t.   realmuto", ".  j realmuto")
+              .replace(", j.   realmuto", ".  j realmuto"),
+            player, batterTeam, YearFormatter.print(date))
+          val latestPlay = Play(inningAndSide.inning, inningAndSide.side, player.id, "00", "\"" + player.firstName + " " + player.lastName + "\"", "WP" + advancements)
+          logger.info("Play: " + latestPlay)
+          latestPlay
         }
         case _ => {
           if (!playDescription.startsWith("Pitcher") && !playDescription.startsWith("Batter"))

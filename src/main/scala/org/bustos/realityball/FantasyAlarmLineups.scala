@@ -9,9 +9,10 @@ import org.scalatest.time.{ Span, Seconds }
 import org.openqa.selenium._
 import remote._
 import org.slf4j.LoggerFactory
-import RealityballRecords._
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballConfig._
 import scala.collection.JavaConversions._
+import org.bustos.realityball.common.RealityballData
 
 class FantasyAlarmLineups(val date: DateTime) extends Chrome {
 

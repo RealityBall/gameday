@@ -1,6 +1,7 @@
 package org.bustos.realityball
 
-import RealityballRecords._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballData
 import org.slf4j.LoggerFactory
 
 class MlbRunnerPositions {
@@ -20,6 +21,7 @@ class MlbRunnerPositions {
   val poAt1stExpression = """.* picks off (.*) at 1st.*""".r
   val poAt2ndExpression = """.* picks off (.*) at 2nd.*""".r
   val poAt3rdExpression = """.* picks off (.*) at 3rd.*""".r
+  val advancesTo1stExpression = """.*[\.,]  *(.*) advances to 1st.*""".r
   val advancesTo2ndExpression = """.*[\.,]  *(.*) advances to 2nd.*""".r
   val advancesTo3rdExpression = """.*[\.,]  *(.*) advances to 3rd.*""".r
   val scoresExpression = """.*[\.,]  *(.*) scores.*""".r
@@ -58,9 +60,11 @@ class MlbRunnerPositions {
             logger.warn("Initial attempt to find player failed: " + trimmedName + " (" + team + ")")
             // These are one off bugs from mlb.com where they confuse the first name on an advancement.
             if (trimmedName == "j   ellis") realityballData.playerFromName("A", "Ellis", year, team)
+            else if (trimmedName == "b   shuck") realityballData.playerFromName("J", "Shuck", year, team)
             else if (trimmedName == "j   pollock") realityballData.playerFromName("A", "Pollock", year, team)
             else if (trimmedName == "jackie bradley    brock holt") realityballData.playerFromName("B", "Holt", year, team)
             else if (trimmedName == "David Carpenter" && team == "NYA" && year == "2015") realityballData.playerFromRetrosheetId("carpd001", year)  // Traded from ATL to NYA
+            else if (trimmedName == "Sugar Ray Marimon") realityballData.playerFromRetrosheetId("516970", year)  // New player with hard parsing
             else realityballData.playerFromName(fName.trim, lastName.trim, year, team)
           }
         }
@@ -68,6 +72,7 @@ class MlbRunnerPositions {
       case _ => {
         // These are one off bugs from mlb.com where they omit the first name on an advancement.
         if (name == "ellis") realityballData.playerFromName("A", "Ellis", year, team)
+        else if (name == "cron") realityballData.playerFromName("C", "Cron", year, team)
         else if (name == "hardy") realityballData.playerFromName("J", "Hardy", year, team)
         else {
           logger.warn("Could not decode name: " + trimmedName)
@@ -122,6 +127,12 @@ class MlbRunnerPositions {
       case _                         =>
     }
     play match {
+      case advancesTo1stExpression(name) =>
+        val runner = playerFromString(name, team, year)
+        if (runner == null || (batter.id == runner.id && !positions.contains(runner))) positions += (runner -> "1") // Reached first on a throwing error
+        advancements = advancements + positions(runner) + "-1;"
+        positions -= runner
+        positions += (runner -> "1")
       case to1stExpression(name) =>
         positions += (playerFromString(name, team, year) -> "1"); advancements = advancements + "B-1;"
       case _ =>

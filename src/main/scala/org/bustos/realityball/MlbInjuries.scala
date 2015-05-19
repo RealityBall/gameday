@@ -13,8 +13,9 @@ import remote._
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
 import org.slf4j.LoggerFactory
-import RealityballRecords._
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballConfig._
+import org.bustos.realityball.common.RealityballData
 
 class MlbInjuries extends Chrome {
 

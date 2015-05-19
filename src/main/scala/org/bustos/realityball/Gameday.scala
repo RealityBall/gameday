@@ -8,8 +8,9 @@ import scala.io.Source
 import scala.slick.driver.MySQLDriver.simple._
 import scala.slick.jdbc.meta.MTable
 
-import RealityballRecords._
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballConfig._
+import org.bustos.realityball.common.RealityballData
 
 object Gameday extends App {
 
@@ -34,10 +35,10 @@ object Gameday extends App {
       gamedayScheduleTable.filter({ x => x.date startsWith year }).delete
       realityballData.teams(year).foreach(team => {
         val schedule = new MlbSchedule(team, year)
-        schedule.pastGames.map { game =>
+        schedule.pastGames.foreach { game =>
           gamedayScheduleTable += game
         }
-        schedule.futureGames.map { game =>
+        schedule.futureGames.foreach { game =>
           gamedayScheduleTable += game
         }
       })
@@ -90,17 +91,12 @@ object Gameday extends App {
   processInjuries(DateTime.now)
   //processOdds(2015)
   //processLineups(new DateTime(2015, 4, 6, 0, 0))
-  val startDate = new DateTime(2015, 4, 8, 0, 0)
+  val startDate = new DateTime(2015, 5, 1, 0, 0)
   (for (f <- 0 to 20) yield startDate.plusDays(f)).foreach(processGamedayDate(_))
 
   //(2010 to 2014).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
 
-  //processGamedayDate(new DateTime(2014, 4, 24, 0, 0))
-  //processGamedayDate(new DateTime(2014, 5, 24, 0, 0))
-  //processGamedayDate(new DateTime(2014, 6, 24, 0, 0))
-  //processGamedayDate(new DateTime(2014, 7, 24, 0, 0))
-  //processGamedayDate(new DateTime(2015, 4, 5, 0, 0))
   logger.info("Completed Processing")
 }

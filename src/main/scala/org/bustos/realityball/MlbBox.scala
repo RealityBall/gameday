@@ -14,8 +14,9 @@ import htmlunit._
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
 import org.slf4j.LoggerFactory
-import RealityballRecords._
-import RealityballConfig._
+import org.bustos.realityball.common.RealityballRecords._
+import org.bustos.realityball.common.RealityballConfig._
+import org.bustos.realityball.common.RealityballData
 
 object MlbBox {
 
@@ -175,6 +176,7 @@ class MlbBox(val game: Game) extends Chrome {
             }
             GameInfo(gameId, pitchesStrikes, groundFly, battersFaced, umpires, temp, sky, windSpeed, windDirection, timeOfGame.toString, attendance.replaceAll(",", ""), venue.split(" ")(0))
           }
+          case _ => GameInfo("", "", "", "", "", "", "", "", "", "", "", "")
         }
       }
       case _ => GameInfo("", "", "", "", "", "", "", "", "", "", "", "")
