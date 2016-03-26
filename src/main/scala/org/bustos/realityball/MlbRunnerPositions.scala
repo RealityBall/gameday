@@ -4,35 +4,43 @@ import org.bustos.realityball.common.RealityballRecords._
 import org.bustos.realityball.common.RealityballData
 import org.slf4j.LoggerFactory
 
+object MlbRunnerPositions {
+  val nameExpression = """(A.  J.  )?(C.  J.  )?(B.  J.  )?(L.  J.  )?(T.  J.  )?(J.  P.  )?(J.  D.  )?(R.  J.  )?(Juan Carlos)?(John Ryan)?(J.  )?(.*?) (.*)""".r
+  val outAt2ndExpression = """.*[\.,:]  *(.*) out at 2nd.*""".r
+  val outAt3rdExpression = """.*[\.,:]  *(.*) out at 3rd.*""".r
+  val outAtHomeExpression = """.*[\.,:]  *(.*) out at home.*""".r
+  val to1stExpression = """.*[\.,:]  *(.*) to 1st.*""".r
+  val to2ndExpression = """.*[\.,:]  *(.*) to 2nd.*""".r
+  val to3rdExpression = """.*[\.,:]  *(.*) to 3rd.*""".r
+  val poAt1stExpression = """.* picks off (.*) at 1st.*""".r
+  val poAt2ndExpression = """.* picks off (.*) at 2nd.*""".r
+  val poAt3rdExpression = """.* picks off (.*) at 3rd.*""".r
+  val advancesTo1stExpression = """.*[\.,:]  *(.*) advances to 1st.*""".r
+  val advancesTo2ndExpression = """.*[\.,:]  *(.*) advances to 2nd.*""".r
+  val advancesTo3rdExpression = """.*[\.,:]  *(.*) advances to 3rd.*""".r
+  val scoresExpression = """.*[\.,:]  *(.*) scores.*""".r
+  val twoScoresExpression = """.*[\.,:]  *(.*) scores\.  *(.*) scores.*""".r
+  val threeScoresExpression = """.*[\.,:]  *(.*) scores\.  *(.*) scores\.  *(.*) scores.*""".r
+}
+
 class MlbRunnerPositions {
+
+  import MlbRunnerPositions._
 
   val realityballData = new RealityballData
   val logger = LoggerFactory.getLogger(getClass)
 
   var positions = Map.empty[Player, String]
 
-  val nameExpression = """(A.  J.  )?(C.  J.  )?(B.  J.  )?(L.  J.  )?(T.  J.  )?(J.  P.  )?(J.  D.  )?(R.  J.  )?(Juan Carlos)?(John Ryan)?(J.  )?(.*?) (.*)""".r
-  val outAt2ndExpression = """.*[\.,]  *(.*) out at 2nd.*""".r
-  val outAt3rdExpression = """.*[\.,]  *(.*) out at 3rd.*""".r
-  val outAtHomeExpression = """.*[\.,]  *(.*) out at home.*""".r
-  val to1stExpression = """.*[\.,]  *(.*) to 1st.*""".r
-  val to2ndExpression = """.*[\.,]  *(.*) to 2nd.*""".r
-  val to3rdExpression = """.*[\.,]  *(.*) to 3rd.*""".r
-  val poAt1stExpression = """.* picks off (.*) at 1st.*""".r
-  val poAt2ndExpression = """.* picks off (.*) at 2nd.*""".r
-  val poAt3rdExpression = """.* picks off (.*) at 3rd.*""".r
-  val advancesTo1stExpression = """.*[\.,]  *(.*) advances to 1st.*""".r
-  val advancesTo2ndExpression = """.*[\.,]  *(.*) advances to 2nd.*""".r
-  val advancesTo3rdExpression = """.*[\.,]  *(.*) advances to 3rd.*""".r
-  val scoresExpression = """.*[\.,]  *(.*) scores.*""".r
-  val twoScoresExpression = """.*[\.,]  *(.*) scores\.  *(.*) scores.*""".r
-  val threeScoresExpression = """.*[\.,]  *(.*) scores\.  *(.*) scores\.  *(.*) scores.*""".r
-
   def lastName(name: String): String = {
     name match {
       case nameExpression(aj, cj, bj, lj, tj, jp, jc, jd, rj, jr, jj, firstName, lastName) => lastName
       case _ => ""
     }
+  }
+
+  def playerFromMlbId(mlbId: String, year: String): Player = {
+    realityballData.playerFromMlbId(mlbId, year)
   }
 
   def playerFromString(name: String, team: String, year: String): Player = {
@@ -61,9 +69,12 @@ class MlbRunnerPositions {
             // These are one off bugs from mlb.com where they confuse the first name on an advancement.
             if (trimmedName == "j   ellis") realityballData.playerFromName("A", "Ellis", year, team)
             else if (trimmedName == "b   shuck") realityballData.playerFromName("J", "Shuck", year, team)
+            else if (trimmedName == "j  b   shuck") realityballData.playerFromName("J", "Shuck", year, team)
+            else if (trimmedName == "j  a   happ") realityballData.playerFromName("J", "Happ", year, team)
             else if (trimmedName == "j   pollock") realityballData.playerFromName("A", "Pollock", year, team)
+            else if (trimmedName == "j   pierzynski") realityballData.playerFromName("A", "Pierzynski", year, team)
             else if (trimmedName == "jackie bradley    brock holt") realityballData.playerFromName("B", "Holt", year, team)
-            else if (trimmedName == "David Carpenter" && team == "NYA" && year == "2015") realityballData.playerFromRetrosheetId("carpd001", year)  // Traded from ATL to NYA
+            else if (trimmedName == "David Carpenter" && (team == "NYA" || team == "WAS") && year == "2015") realityballData.playerFromRetrosheetId("502304", year)  // Traded from ATL to NYA then to WAS
             else if (trimmedName == "Sugar Ray Marimon") realityballData.playerFromRetrosheetId("516970", year)  // New player with hard parsing
             else realityballData.playerFromName(fName.trim, lastName.trim, year, team)
           }
@@ -72,8 +83,11 @@ class MlbRunnerPositions {
       case _ => {
         // These are one off bugs from mlb.com where they omit the first name on an advancement.
         if (name == "ellis") realityballData.playerFromName("A", "Ellis", year, team)
+        else if (name == "wilson") realityballData.playerFromName("C", "Wilson", year, team)
         else if (name == "cron") realityballData.playerFromName("C", "Cron", year, team)
         else if (name == "hardy") realityballData.playerFromName("J", "Hardy", year, team)
+        else if (name == "realmuto") realityballData.playerFromName("J", "Realmuto", year, team)
+        else if (name == "pierzynski") realityballData.playerFromName("A", "Pierzynski", year, team)
         else {
           logger.warn("Could not decode name: " + trimmedName)
           null
@@ -97,11 +111,14 @@ class MlbRunnerPositions {
     if (play.contains("triple")) positions += (batter -> "3")
     if (play.contains("hit by pitch")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("hits a sacrifice bunt")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
+    if (play.contains("reaches on an interference error")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("reaches on a fielding error")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("reaches on a fielder's choice")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("reaches on a throwing error")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("reaches on a force attempt")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
     if (play.contains("reaches on a missed catch error")) { positions += (batter -> "1"); advancements = advancements + "B-1;" }
+    if (play.contains("advances to 2nd, on a throwing error")) { positions += (batter -> "2"); advancements = advancements + "B-2;" }
+    if (play.contains("advances to 3rd, on a throwing error")) { positions += (batter -> "3"); advancements = advancements + "B-3;" }
     play match {
       case poAt1stExpression(name) => positions -= playerFromString(name, team, year)
       case _                       =>
@@ -113,18 +130,6 @@ class MlbRunnerPositions {
     play match {
       case poAt3rdExpression(name) => positions -= playerFromString(name, team, year)
       case _                       =>
-    }
-    play match {
-      case outAt2ndExpression(name) => positions -= playerFromString(name, team, year)
-      case _                        =>
-    }
-    play match {
-      case outAt3rdExpression(name) => positions -= playerFromString(name, team, year)
-      case _                        =>
-    }
-    play match {
-      case outAtHomeExpression(name) => positions -= playerFromString(name, team, year)
-      case _                         =>
     }
     play match {
       case advancesTo1stExpression(name) =>
@@ -194,6 +199,18 @@ class MlbRunnerPositions {
         positions -= runner
       }
       case _ =>
+    }
+    play match {
+      case outAt2ndExpression(name) => positions -= playerFromString(name, team, year)
+      case _                        =>
+    }
+    play match {
+      case outAt3rdExpression(name) => positions -= playerFromString(name, team, year)
+      case _                        =>
+    }
+    play match {
+      case outAtHomeExpression(name) => positions -= playerFromString(name, team, year)
+      case _                         =>
     }
     if (advancements.length > 1) advancements
     else ""

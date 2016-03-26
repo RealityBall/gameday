@@ -58,17 +58,17 @@ object Gameday extends App {
   }
 
   def processInjuries(date: DateTime) = {
-    var injuries = (new MlbInjuries).injuries
+    val injuries = (new MlbInjuries).injuries
     db.withSession { implicit session =>
-      injuryReportTable.filter({ x => x.injuryReportDate === CcyymmddFormatter.print(date) }).delete
-      injuries.foreach({ injuryReportTable += _ })
+      injuryReportTable.filter({ x => x.injuryReportDate === date }).delete
+      injuries.filter(_.mlbId != null).foreach({ injuryReportTable += _ })
     }
   }
 
   def processLineups(date: DateTime) = {
     var lineups = new FantasyAlarmLineups(date)
     db.withSession { implicit session =>
-      lineupsTable.filter({ x => x.date === CcyymmddFormatter.print(date) }).delete
+      lineupsTable.filter({ x => x.date === date }).delete
       lineups.lineups.foreach({ case (k, v) => v.foreach(lineupsTable += _) })
     }
   }
@@ -88,13 +88,13 @@ object Gameday extends App {
     }
   }
 
-  processInjuries(DateTime.now)
+  //processInjuries(DateTime.now)
   //processOdds(2015)
   //processLineups(new DateTime(2015, 4, 6, 0, 0))
-  val startDate = new DateTime(2015, 5, 1, 0, 0)
-  (for (f <- 0 to 20) yield startDate.plusDays(f)).foreach(processGamedayDate(_))
+  //val startDate = new DateTime(2015, 5, 10, 0, 0)
+  //(for (f <- 0 to 50) yield startDate.plusDays(f)).foreach(processGamedayDate(_))
 
-  //(2010 to 2014).foreach(processOdds(_))
+  (2010 to 2015).foreach(processOdds(_))
   //processSchedules("2014")
   //processSchedules("2015")
 

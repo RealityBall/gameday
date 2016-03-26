@@ -44,8 +44,13 @@ class MlbInjuries extends Chrome {
   def mlbIdFromMlbUrl(mlbUrl: WebElement): String = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
     url match {
-      case mlbIdExpression(urlString, mlbId) =>
-        realityballData.playerFromMlbId(mlbId, ""); mlbId
+      case mlbIdExpression(urlString, mlbId) => {
+        try {
+          realityballData.playerFromMlbId(mlbId, ""); mlbId
+        } catch {
+          case _: Exception => null
+        }
+     }
       case _ => throw new IllegalStateException("No player found")
     }
   }

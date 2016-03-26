@@ -1,6 +1,7 @@
 package org.bustos.realityball
 
 import java.io._
+import org.joda.time.DateTime
 import org.scalatest._
 import selenium._
 import org.scalatest.time.{ Span, Seconds }
@@ -68,17 +69,17 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
   def conditionsForDate(gameType: String, date: String): GameConditions = {
     //if (gameType == futureGame) weather.forecastConditions(date)
     //else weather.historicalConditions(date)
-    GameConditions("", "", "", false, 0, "", 0, "", "", "")
+    GameConditions("", new DateTime, "", false, 0, "", 0, "", "", "")
   }
 
   def scheduleFromRow(gameType: String, gameElement: RemoteWebElement): GamedaySchedule = {
     gameElement.getAttribute("textContent") match {
-      case awayExpression(where) => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
+      case awayExpression(where) => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
       case homeGame: String => {
         val id = gameElement.getAttribute("id")
         val date = find(id + "c0").get.text match {
-          case dateExpression(dow, month, day) => year + (if (month.toInt < 10) "0" else "") + month + (if (day.toInt < 10) "0" else "") + day
-          case _                               => ""
+          case dateExpression(dow, month, day) => CcyymmddFormatter.parseDateTime(year + (if (month.toInt < 10) "0" else "") + month + (if (day.toInt < 10) "0" else "") + day)
+          case _                               => new DateTime
         }
         val visitingTeam = find(id + "c1").get.text
         val gameId = team.mnemonic + date + "0"
@@ -111,15 +112,15 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
             if (game.isDisplayed && game.getAttribute("id") != "") {
               game match {
                 case gameElement: RemoteWebElement => scheduleFromRow(gameType, gameElement)
-                case _                             => GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
+                case _                             => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
               }
-            } else GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", "")
+            } else GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
           }
         }
-        case _ => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", ""))
+        case _ => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", ""))
       }
     }
-    case x => List(GamedaySchedule("", "", "", "", "", 0, "", "", "", "", "", "", "", 0, "", 0, "", ""))
+    case x => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", ""))
   }) filter { _.id != "" }
 
   def findDoubleHeaders(games: List[GamedaySchedule]): List[GamedaySchedule] = {

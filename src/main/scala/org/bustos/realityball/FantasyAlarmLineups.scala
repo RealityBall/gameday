@@ -24,7 +24,7 @@ class FantasyAlarmLineups(val date: DateTime) extends Chrome {
   val teamExpression = """http://www.fantasyalarm.com/teams/mlb/(.*)/""".r
   val playerExpression = """http://www.fantasyalarm.com/players/mlb/(.*)/(.*)/""".r
   val nameExpression = """(.*?) (.*)""".r
-  val EmptyLineupEntry = Lineup("", "", "", "", 0, "", Some(0.0), Some(0.0), Some(0.0))
+  val EmptyLineupEntry = Lineup("", new DateTime, "", "", 0, "", Some(0.0), Some(0.0), Some(0.0))
 
   logger.info("*****************************************")
   logger.info("*** Retrieving lineups for " + CcyymmddDelimFormatter.print(date) + " ***")
@@ -95,7 +95,7 @@ class FantasyAlarmLineups(val date: DateTime) extends Chrome {
             val lineupPosition = if (textContent(columns(0)) != "") textContent(columns(0)).toInt else 0
             val position = textContent(columns(1))
             if (position == "") EmptyLineupEntry
-            else Lineup(player.id, CcyymmddFormatter.print(date), "game", team.mlbComName, lineupPosition, position, salary(columns(8)), salary(columns(9)), salary(columns(10)))
+            else Lineup(player.id, date, "game", team.mlbComName, lineupPosition, position, salary(columns(8)), salary(columns(9)), salary(columns(10)))
           } else EmptyLineupEntry
         }
         case _ => EmptyLineupEntry
