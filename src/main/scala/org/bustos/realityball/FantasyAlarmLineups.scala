@@ -1,22 +1,21 @@
 package org.bustos.realityball
 
-import org.joda.time._
-import org.joda.time.format._
 import java.io._
-import org.scalatest._
-import selenium._
-import org.scalatest.time.{ Span, Seconds }
-import org.openqa.selenium._
-import remote._
-import org.slf4j.LoggerFactory
-import org.bustos.realityball.common.RealityballRecords._
+import java.util.concurrent.TimeUnit
+
 import org.bustos.realityball.common.RealityballConfig._
-import scala.collection.JavaConversions._
 import org.bustos.realityball.common.RealityballData
+import org.bustos.realityball.common.RealityballRecords._
+import org.joda.time._
+import org.openqa.selenium._
+import org.openqa.selenium.remote._
+import org.scalatest.selenium._
+import org.scalatest.time.{Seconds, Span}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConversions._
 
 class FantasyAlarmLineups(val date: DateTime) extends Chrome {
-
-  implicitlyWait(Span(20, Seconds))
 
   val realityballData = new RealityballData
   val logger = LoggerFactory.getLogger(getClass)
@@ -33,10 +32,14 @@ class FantasyAlarmLineups(val date: DateTime) extends Chrome {
   val fileName = DataRoot + "fantasyAlarmPages/" + date.getYear + "/" + CcyymmddFormatter.print(date) + ".html"
 
   if (new File(fileName).exists) {
-    val caps = DesiredCapabilities.chrome;
-    caps.setCapability("chrome.switches", Array("--disable-javascript"));
+    implicitlyWait(Span(5, Seconds))
+
+    webDriver.manage.timeouts.pageLoadTimeout(15, TimeUnit.SECONDS)
+    val caps = DesiredCapabilities.chrome
+    caps.setCapability("chrome.switches", Array("--disable-javascript"))
     go to "file://" + fileName
   } else {
+    implicitlyWait(Span(20, Seconds))
     val host = FantasyAlarmURL
     go to host + "lineups.php?lineup_date=" + date.getYear + "-" + date.getMonthOfYear + "-" + date.getDayOfMonth + "&sport=mlb"
     if (!(new File(fileName)).exists) {
@@ -48,9 +51,9 @@ class FantasyAlarmLineups(val date: DateTime) extends Chrome {
     caps.setCapability("chrome.switches", Array("--disable-javascript"));
     go to "file://" + fileName
   }
-  if ((new File(fileName)).exists) {
-    new File(fileName).delete
-  }
+  //if ((new File(fileName)).exists) {
+  //  new File(fileName).delete
+  //}
 
   def salary(element: WebElement): Option[Double] = {
     val value = textContent(element)

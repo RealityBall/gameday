@@ -1,22 +1,18 @@
 package org.bustos.realityball
 
 import java.io._
-import org.joda.time._
-import org.joda.time.format._
-import org.scalatest._
-import selenium._
-import org.scalatest.time.{ Span, Seconds }
-import org.openqa.selenium.support.ui.{ WebDriverWait, ExpectedCondition }
-import org.openqa.selenium._
-import org.openqa.selenium.By._
-import remote._
-import htmlunit._
-import scala.util.matching.Regex
-import scala.collection.JavaConversions._
-import org.slf4j.LoggerFactory
-import org.bustos.realityball.common.RealityballRecords._
+
 import org.bustos.realityball.common.RealityballConfig._
 import org.bustos.realityball.common.RealityballData
+import org.bustos.realityball.common.RealityballRecords._
+import org.openqa.selenium.By._
+import org.openqa.selenium._
+import org.openqa.selenium.remote._
+import org.scalatest.selenium._
+import org.scalatest.time.{Seconds, Span}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConversions._
 
 object MlbBox {
 
@@ -26,8 +22,9 @@ object MlbBox {
                       temp: String, sky: String, windSpeed: String, windDir: String, time: String, attendance: String, venue: String)
 
   val mlbIdExpression = "(.*)=(.*)".r
-  val windExpression = """(.*) mph, (.*)\.""".r
-  val skyExpression = """(.*) degrees, (.*)\.""".r
+  val mlbIdExpression2 = """(.*)\/(.*)""".r
+  val windExpression = """(.*) mph, (.*)\..*First.*""".r
+  val skyExpression = """(.*) degrees, (.*)\..*""".r
   val timeOfGameExpression = """(.*?):(.*?)[\. ](.*)""".r
 }
 
@@ -35,12 +32,10 @@ class MlbBox(val game: Game) extends Chrome {
 
   import MlbBox._
 
-  implicitlyWait(Span(20, Seconds))
-
   val realityballData = new RealityballData
   val logger = LoggerFactory.getLogger(getClass)
 
-  val date = CcyymmddSlashDelimFormatter.parseDateTime(game.date)
+  val date = game.date
   val version_2_format = CcyymmddFormatter.print(date) > "20150401"
   val mlbHomeTeam = realityballData.mlbComIdFromRetrosheet(game.homeTeam)
   val mlbVisitingTeam = realityballData.mlbComIdFromRetrosheet(game.visitingTeam)
@@ -59,18 +54,25 @@ class MlbBox(val game: Game) extends Chrome {
   val fileName = DataRoot + "gamedayPages/" + date.getYear + "/" + game.visitingTeam + "_" + game.homeTeam + "_" + CcyymmddFormatter.print(date) + "_box.html"
 
   if (new File(fileName).exists) {
-    val caps = DesiredCapabilities.chrome;
-    caps.setCapability("chrome.switches", Array("--disable-javascript"));
+    implicitlyWait(Span(10, Seconds))
+    val caps = DesiredCapabilities.chrome
+    caps.setCapability("chrome.switches", Array("--disable-javascript"))
     go to "file://" + fileName
   } else {
-    val host = GamedayURL
-    go to host + "mlb/gameday/index.jsp?gid=" + CcyymmddDelimFormatter.print(date) + "_" + game.visitingTeam.toLowerCase + "mlb_" + game.homeTeam.toLowerCase + "mlb_1&mode=box"
+    implicitlyWait(Span(30, Seconds))
+    go to game.gamedayUrl
+  }
+  if (!(new File(fileName)).exists) {
+    val writer = new FileWriter(new File(fileName))
+    writer.write(pageSource)
+    writer.close
   }
 
   def playerFromMlbUrl(mlbUrl: WebElement): Player = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
     url match {
       case mlbIdExpression(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, YearFormatter.print(date))
+      case mlbIdExpression2(urlString, mlbId) => realityballData.playerFromMlbId(mlbId, YearFormatter.print(date))
       case _                                 => throw new IllegalStateException("No player found")
     }
   }
@@ -201,9 +203,9 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   val pitchingResults: List[(WebElement, WebElement)] = {
-    find("linescore-wrapper") match {
+    find(XPathQuery("""//*[@id="text_matchup"]/div[4]""")) match {
       case Some(x) => x.underlying match {
-        case y: RemoteWebElement => y.findElementsByTagName("dt").toList.zip(y.findElementsByTagName("dd").toList)
+        case y: RemoteWebElement => y.findElementsByTagName("div").toList.zip(y.findElementsByTagName("a").toList)
         case _                   => List.empty[(WebElement, WebElement)]
       }
       case _ => List.empty[(WebElement, WebElement)]
@@ -225,7 +227,7 @@ class MlbBox(val game: Game) extends Chrome {
   }
 
   def pitcherForTypeNew(resultType: String): Player = {
-    val url = find(XPathQuery("""//*[@id="text_matchup"]/div[3]/div[contains(@class, '""" + resultType + """')]""")) match {
+    val url = find(XPathQuery("""//*[@id="text_matchup"]/div[4]/div[contains(@class, '""" + resultType + """')]""")) match {
       case Some(x) => x.underlying match {
         case x: RemoteWebElement => x
         case _ => null
@@ -269,12 +271,6 @@ class MlbBox(val game: Game) extends Chrome {
   }
   val awayStartingLineup = awayBatterLinescores.filter { _.starter }
   val homeStartingLineup = homeBatterLinescores.filter { _.starter }
-
-  if (!(new File(fileName)).exists) {
-    val writer = new FileWriter(new File(fileName))
-    writer.write(pageSource)
-    writer.close
-  }
 
   quit
 }

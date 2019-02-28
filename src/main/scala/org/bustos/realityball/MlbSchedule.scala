@@ -66,7 +66,7 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
 
   val weather = new Weather(team.zipCode)
 
-  def conditionsForDate(gameType: String, date: String): GameConditions = {
+  def conditionsForDate(gameType: String, date: DateTime): GameConditions = {
     //if (gameType == futureGame) weather.forecastConditions(date)
     //else weather.historicalConditions(date)
     GameConditions("", new DateTime, "", false, 0, "", 0, "", "", "")
@@ -74,32 +74,34 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
 
   def scheduleFromRow(gameType: String, gameElement: RemoteWebElement): GamedaySchedule = {
     gameElement.getAttribute("textContent") match {
-      case awayExpression(where) => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
+      case awayExpression(where) => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", 0, "", 0, "", "")
       case homeGame: String => {
         val id = gameElement.getAttribute("id")
-        val date = find(id + "c0").get.text match {
-          case dateExpression(dow, month, day) => CcyymmddFormatter.parseDateTime(year + (if (month.toInt < 10) "0" else "") + month + (if (day.toInt < 10) "0" else "") + day)
-          case _                               => new DateTime
-        }
-        val visitingTeam = find(id + "c1").get.text
-        val gameId = team.mnemonic + date + "0"
         val time = {
           if (gameType == futureGame) {
             find(id + "c2").get.text match {
-              case pmTimeExpression(hours, minutes) => if (hours.toInt < 12) (hours.toInt + 12).toString else hours + ":" + minutes
+              case pmTimeExpression(hours, minutes) => if (hours.toInt < 12) (hours.toInt + 12).toString + ":" + minutes else hours + ":" + minutes
               case amTimeExpression(hours, minutes) => (if (hours.toInt < 10) "0" else "") + hours + ":" + minutes
               case _                                => "19:00"
             }
           } else "19:00"
         }
+        val date = find(id + "c0").get.text match {
+          case dateExpression(dow, month, day) => {
+            CcyymmddTimeFormatter.parseDateTime(year + (if (month.toInt < 10) "0" else "") + month + (if (day.toInt < 10) "0" else "") + day + " " + time)
+          }
+          case _                               => new DateTime
+        }
+        val visitingTeam = find(id + "c1").get.text
+        val gameId = team.mnemonic + date + "0"
         val result = if (gameType == pastGame) find(id + "c2").get.text else ""
         val record = if (gameType == pastGame) find(id + "c3").get.text else ""
         val winningPitcher = if (gameType == pastGame) find(id + "c4").get.text else ""
         val losingPitcher = if (gameType == pastGame) find(id + "c5").get.text else ""
-        val conditions = conditionsForDate(gameType, date + " " + time)
+        val conditions = conditionsForDate(gameType, date)
         GamedaySchedule(gameId, team.mnemonic, retrosheetIdFromName(visitingTeam), siteIdFromMnemonic(team.mnemonic), date, 0,
           result, winningPitcher, losingPitcher, record, "", "",
-          time, conditions.temp, "", { if (conditions.winddir == "") 0 else conditions.winddir.toInt }, "", conditions.sky)
+          conditions.temp, "", { if (conditions.winddir == "") 0 else conditions.winddir.toInt }, "", conditions.sky)
       }
     }
   }
@@ -112,15 +114,15 @@ class MlbSchedule(team: Team, year: String) extends Chrome {
             if (game.isDisplayed && game.getAttribute("id") != "") {
               game match {
                 case gameElement: RemoteWebElement => scheduleFromRow(gameType, gameElement)
-                case _                             => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
+                case _                             => GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", 0, "", 0, "", "")
               }
-            } else GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", "")
+            } else GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", 0, "", 0, "", "")
           }
         }
-        case _ => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", ""))
+        case _ => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", 0, "", 0, "", ""))
       }
     }
-    case x => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", new DateTime, 0, "", 0, "", ""))
+    case x => List(GamedaySchedule("", "", "", "", new DateTime, 0, "", "", "", "", "", "", 0, "", 0, "", ""))
   }) filter { _.id != "" }
 
   def findDoubleHeaders(games: List[GamedaySchedule]): List[GamedaySchedule] = {

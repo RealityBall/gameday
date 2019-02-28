@@ -1,23 +1,22 @@
 package org.bustos.realityball
 
 import java.io._
-import org.scalatest._
-import selenium._
-import org.scalatest.time.{ Span, Seconds }
-import org.openqa.selenium.support.ui.{ WebDriverWait, ExpectedCondition }
-import org.openqa.selenium._
-import htmlunit._
-import remote._
-import scala.util.matching.Regex
-import scala.collection.JavaConversions._
-import org.slf4j.LoggerFactory
-import org.bustos.realityball.common.RealityballRecords._
+
 import org.bustos.realityball.common.RealityballConfig._
 import org.bustos.realityball.common.RealityballData
+import org.bustos.realityball.common.RealityballRecords._
+import org.joda.time.DateTime
+import org.openqa.selenium._
+import org.openqa.selenium.remote._
+import org.scalatest.selenium._
+import org.scalatest.time.{Seconds, Span}
+import org.slf4j.LoggerFactory
 
-class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameOdds]], past: Boolean) extends Chrome {
+import scala.collection.JavaConversions._
+import scala.util.matching.Regex
 
-  implicitlyWait(Span(20, Seconds))
+
+class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameOdds]]) extends Chrome {
 
   val dateExpression: Regex = ".*([0-9][0-9])/([0-9][0-9])/([0-9][0-9]).*".r
   val visitorExpression: Regex = "@(.*)".r
@@ -26,6 +25,8 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
   val futureOddsML: Regex = "(.*)/(.*)([ou])(.*)".r // e.g. 115/7o -112
 
   val logger = LoggerFactory.getLogger(getClass)
+  val currentYear = (new DateTime).year.get
+  val past = year.toInt < currentYear
   val pastFuture = if (past) " (past)   " else " (future) "
 
   logger.info("*********************************************************")
@@ -34,22 +35,23 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
 
   val host = "http://www.covers.com/"
 
-  val fileName = DataRoot + "coversPages/" + year + "/" + team.mnemonic + "_odds.html"
+  val directoryName = DataRoot + "coversPages/" + year
+  val fileName = directoryName + "/" + team.mnemonic + "_odds.html"
 
-  if (year < "2015") {
+  if (past) {
     if (new File(fileName).exists) {
       val caps = DesiredCapabilities.chrome;
       caps.setCapability("chrome.switches", Array("--disable-javascript"));
+      implicitlyWait(Span(5, Seconds))
       go to "file://" + fileName
     } else {
-      go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
+      implicitlyWait(Span(10, Seconds))
+      go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
     }
   } else {
-    if (past) go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/pastresults/" + year + "/team" + team.coversComId + ".html"
-    else go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
-
+    implicitlyWait(Span(10, Seconds))
+    go to host + "pageLoader/pageLoader.aspx?page=/data/mlb/teams/schedule/team" + team.coversComId + ".html"
   }
-  Thread sleep 5
 
   val retrosheetIdFromCovers = {
     val realityballData = new RealityballData
@@ -57,7 +59,7 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
       val lYear = if (year == "2015") "2014" else year
       if (past) realityballData.teams(lYear).map(x => (x.coversComName -> x.mnemonic)).toMap
       else realityballData.teams(lYear).map(x => (cleanString(x.coversComFullName) -> x.mnemonic)).toMap
-    }
+    } + ("LAD" -> "LAN")
     if (year == "2010" || year == "2011") mappings + ("MIA" -> "FLO")
     else mappings
   }
@@ -175,7 +177,10 @@ class CoversLines(team: Team, year: String, runningGames: Map[String, List[GameO
     }
   }
 
-  if (year < "2015") {
+  if (year.toInt < currentYear) {
+
+    val directory = new File(directoryName)
+    if (!directory.exists) directory.mkdir
     if (!(new File(fileName)).exists) {
       val writer = new FileWriter(new File(fileName))
       writer.write(pageSource)

@@ -1,27 +1,24 @@
 package org.bustos.realityball
 
-import org.scalatest._
-import selenium._
-import org.joda.time._
-import org.joda.time.format._
-import org.scalatest.time.{ Span, Seconds }
-import org.openqa.selenium.support.ui.{ WebDriverWait, ExpectedCondition }
-import org.openqa.selenium._
-import org.openqa.selenium.By._
-import htmlunit._
-import remote._
-import scala.util.matching.Regex
-import scala.collection.JavaConversions._
-import org.slf4j.LoggerFactory
-import org.bustos.realityball.common.RealityballRecords._
 import org.bustos.realityball.common.RealityballConfig._
 import org.bustos.realityball.common.RealityballData
+import org.bustos.realityball.common.RealityballRecords._
+import org.joda.time._
+import org.openqa.selenium.By._
+import org.openqa.selenium._
+import org.openqa.selenium.remote._
+import org.scalatest.selenium._
+import org.scalatest.time.{Seconds, Span}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConversions._
+import scala.util.matching.Regex
 
 class MlbInjuries extends Chrome {
 
   implicitlyWait(Span(20, Seconds))
 
-  val logger = LoggerFactory.getLogger(getClass)
+  val logger = LoggerFactory.getLogger("Gameday")
   logger.info("********************************")
   logger.info("*** Retrieving injury report ***")
   logger.info("********************************")
@@ -35,11 +32,7 @@ class MlbInjuries extends Chrome {
 
   val timeOfReport: Long = System.currentTimeMillis / 1000
 
-  val reportTimeString: String = {
-    val currentTime = new DateTime
-    val formatter = DateTimeFormat.forPattern("yyyyMMdd HH:mm:ss z")
-    formatter.print(currentTime)
-  }
+  val reportTime = new DateTime
 
   def mlbIdFromMlbUrl(mlbUrl: WebElement): String = {
     val url = mlbUrl.findElement(new ByTagName("a")).getAttribute("href")
@@ -64,11 +57,11 @@ class MlbInjuries extends Chrome {
               case remoteReport: RemoteWebElement => {
                 val reportColumns = remoteReport.findElementsByTagName("td")
                 val mlbId = mlbIdFromMlbUrl(reportColumns(1))
-                val injuryReportDate = reportColumns(2).getAttribute("textContent")
+                val injuryReportDate = MMDDFormatter.parseDateTime(reportColumns(2).getAttribute("textContent"))
                 val status = reportColumns(3).getAttribute("textContent")
                 val dueBack = reportColumns(4).getAttribute("textContent")
                 val injury = reportColumns(5).getAttribute("textContent")
-                InjuryReport(mlbId, reportTimeString, injuryReportDate, status, dueBack, injury)
+                InjuryReport(mlbId, reportTime, injuryReportDate, status, dueBack, injury)
               }
             }
           }
